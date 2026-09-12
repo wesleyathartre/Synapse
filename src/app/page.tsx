@@ -53,8 +53,18 @@ export default function DashboardPage() {
 
   useEffect(() => {
     fetch('/api/dashboard')
-      .then((r) => r.json())
-      .then(setData)
+      .then((r) => {
+        if (r.status === 401) {
+          window.location.href = '/login';
+          return null;
+        }
+        if (!r.ok) throw new Error('Falha ao carregar o dashboard');
+        return r.json();
+      })
+      .then((d) => {
+        if (d && d.kpis) setData(d);
+      })
+      .catch(() => setData(null))
       .finally(() => setLoading(false));
   }, []);
 
