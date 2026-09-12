@@ -1,0 +1,225 @@
+// CRM para corretores de seguros — schema Prisma (SQLite)
+// Docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+// ==================== USUÁRIOS / CORRETORES ====================
+model User {
+  id        String   @id @default(cuid())
+  name      String
+  email     String   @unique
+  password  String
+  phone     String?
+  role      String   @default("CORRETOR") // ADMIN | CORRETOR
+  avatarUrl String?
+  active    Boolean  @default(true)
+
+  // LGPD — registro de consentimento
+  acceptedTermsAt  DateTime? // aceite dos Termos + Política de Privacidade
+  termsVersion     String?   // versão do documento aceito
+  marketingConsent Boolean   @default(false) // opt-in de comunicações
+  lastLoginAt      DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  leads       Lead[]
+  clients     Client[]
+  deals       Deal[]
+  policies    Policy[]
+  activities  Activity[]
+  consentLogs ConsentLog[]
+  auditLogs   AuditLog[]
+}
+
+// ==================== LGPD — TRILHA DE CONSENTIMENTO ====================
+// Guarda a prova de cada consentimento (com data, versão, IP e user agent).
+model ConsentLog {
+  id        String   @id @default(cuid())
+  userId    String
+  type      String // TERMS | PRIVACY | MARKETING
+  granted   Boolean
+  version   String
+  ip        String?
+  userAgent String?
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([type])
+}
+
+// ==================== SEGURANÇA — TRILHA DE AUDITORIA ====================
+// Eventos sensíveis: login, cadastro, exportação e exclusão de dados, etc.
+model AuditLog {
+  id        String   @id @default(cuid())
+  userId    String?
+  email     String?
+  action    String // REGISTER | LOGIN_SUCCESS | LOGIN_FAIL | PASSWORD_CHANGE | DATA_EXPORT | ACCOUNT_DELETE
+  ip        String?
+  userAgent String?
+  meta      String?
+  createdAt DateTime @default(now())
+
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+  @@index([action])
+  @@index([createdAt])
+}
+
+// ==================== LEADS (topo do funil) ====================
+model Lead {
+  id        String   @id @default(cuid())
+  name      String
+  email     String?
+  phone     String
+  source    String   @default("SITE")   // SITE | INDICACAO | FACEBOOK | INSTAGRAM | GOOGLE | LIGACAO | EVENTO | OUTRO
+  interest  String   @default("AUTO")   // produto de interesse (ver constants)
+  status    String   @default("NOVO")   // NOVO | EM_CONTATO | QUALIFICADO | CONVERTIDO | PERDIDO
+  temp      String   @default("MORNO")  // FRIO | MORNO | QUENTE
+  notes     String?
+  ownerId   String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  owner User @relation(fields: [ownerId], references: [id])
+
+  @@index([status])
+  @@index([ownerId])
+}
+
+// ==================== CLIENTES / SEGURADOS ====================
+model Client {
+  id        String   @id @default(cuid())
+  name      String
+  email     String?
+  phone     String
+  cpfCnpj   String?
+  birthDate DateTime?
+  address   String?
+  city      String?
+  state     String?
+  notes     String?
+  ownerId   String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  owner    User     @relation(fields: [ownerId], references: [id])
+  deals    Deal[]
+  policies Policy[]
+
+  @@index([ownerId])
+}
+
+// ==================== FUNIL DE VENDAS (Oportunidades/Negócios) ====================
+model Deal {
+  id                String    @id @default(cuid())
+  title             String
+  product           String    @default("AUTO") // AUTO | VIDA | RESIDENCIAL | SAUDE | EMPRESARIAL | VIAGEM | CONSORCIO
+  stage             String    @default("NOVO") // NOVO | CONTATO | PROPOSTA | NEGOCIACAO | GANHO
+  status            String    @default("OPEN") // OPEN | WON | LOST
+  value             Float     @default(0)      // valor segurado / ticket
+  premium           Float     @default(0)      // prêmio (o que o cliente paga)
+  commission        Float     @default(0)      // comissão estimada do corretor
+  probability       Int       @default(50)     // 0-100
+  expectedCloseDate DateTime?
+  lostReason        String?
+  clientId          String?
+  clientName        String
+  clientPhone       String?
+  ownerId           String
+  order             Int       @default(0)      // ordenação dentro da coluna do kanban
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  client     Client?    @relation(fields: [clientId], references: [id])
+  owner      User       @relation(fields: [ownerId], references: [id])
+  activities Activity[]
+  policies   Policy[]
+
+  @@index([stage])
+  @@index([status])
+  @@index([ownerId])
+}
+
+// ==================== APÓLICES ====================
+model Policy {
+  id         String   @id @default(cuid())
+  number     String   @unique
+  product    String   @default("AUTO")
+  insurer    String
+  clientId   String
+  clientName String
+  premium    Float    @default(0)
+  commission Float    @default(0)
+  startDate  DateTime @default(now())
+  endDate    DateTime // data de renovação
+  status     String   @default("ATIVA") // ATIVA | A_VENCER | VENCIDA | CANCELADA | RENOVADA
+  dealId     String?
+  ownerId    String
+  notes      String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  client Client @relation(fields: [clientId], references: [id])
+  owner  User   @relation(fields: [ownerId], references: [id])
+  deal   Deal?  @relation(fields: [dealId], references: [id])
+
+  @@index([status])
+  @@index([endDate])
+  @@index([ownerId])
+}
+
+// ==================== ATIVIDADES / TAREFAS / AGENDA ====================
+model Activity {
+  id          String   @id @default(cuid())
+  type        String   @default("TAREFA") // LIGACAO | WHATSAPP | EMAIL | REUNIAO | TAREFA
+  title       String
+  description String?
+  dueDate     DateTime
+  done        Boolean  @default(false)
+  doneAt      DateTime?
+  dealId      String?
+  clientId    String?
+  leadId      String?
+  ownerId     String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  owner User  @relation(fields: [ownerId], references: [id])
+  deal  Deal? @relation(fields: [dealId], references: [id])
+
+  @@index([done])
+  @@index([dueDate])
+  @@index([ownerId])
+}
+
+// ==================== CATÁLOGO DE PRODUTOS ====================
+// Fonte de verdade dos produtos ofertados. O admin pode ativar/desativar
+// e criar novos produtos sem alterar o código.
+model Product {
+  code      String   @id // código usado nas oportunidades/apólices (ex.: AUTO)
+  label     String
+  color     String   @default("#2451eb")
+  emoji     String   @default("🏷️")
+  category  String   @default("DIVERSOS")
+  active    Boolean  @default(true)
+  custom    Boolean  @default(false) // criado pelo usuário (pode ser excluído)
+  sort      Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([category])
+  @@index([active])
+}
+
