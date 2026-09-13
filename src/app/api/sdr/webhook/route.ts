@@ -1,13 +1,10 @@
 /**
  * POST /api/sdr/webhook
- * ──────────────────────
- * Recebe mensagens da Meta Cloud API (WhatsApp Business).
- * Fase 2 — pronto para configurar, não ativo por padrão.
- *
- * Para ativar:
- *  1. Configure WHATSAPP_VERIFY_TOKEN e WHATSAPP_ACCESS_TOKEN no .env
- *  2. Registre este endpoint no Meta Developer Console
- *  3. Ative o SDR na tabela SdrConfig para o corretor desejado
+ * ─────────────────────────────────────────────────────────────────────────────
+ * Endpoint para recebimento de mensagens do WhatsApp.
+ * Suporta primariamente a Evolution API (event: messages.upsert),
+ * com simulação de digitação, detecção de pushName e filtros anti-loop.
+ * Também mantém compatibilidade de fallback com a Meta Cloud API.
  */
 
 import { NextRequest, NextResponse } from 'next/server';
@@ -19,20 +16,30 @@ import {
   type SdrContext,
   type SdrMessage,
 } from '@/lib/sdr-engine';
+import {
+  sendEvolutionTextMessage,
+  sanitizeWhatsAppNumber,
+} from '@/lib/evolution-api';
 
 const VERIFY_TOKEN = process.env.WHATSAPP_VERIFY_TOKEN || 'synapse-sdr-token';
 
-// ── GET — verificação do webhook pela Meta ──────────────────────────────────
+// ── GET — verificação / healthcheck do webhook ────────────────────────────────
 export async function GET(req: NextRequest) {
   const params = req.nextUrl.searchParams;
   const mode      = params.get('hub.mode');
   const token     = params.get('hub.verify_token');
   const challenge = params.get('hub.challenge');
 
+  // Suporte à validação legada da Meta
   if (mode === 'subscribe' && token === VERIFY_TOKEN) {
     return new NextResponse(challenge, { status: 200 });
   }
-  return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+
+  // Healthcheck padrão para Evolution API ou navegadores
+  return NextResponse.json(
+    { status: 'online', service: 'Synapse SDR Webhook', provider: 'Evolution API' },
+    { status: 200 }
+  );
 }
 
 // ── POST — recebe mensagens do WhatsApp ──────────────────────────────────────
@@ -40,25 +47,59 @@ export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
 
-    // Estrutura padrão Meta webhook
-    const entry   = body?.entry?.[0];
-    const changes = entry?.changes?.[0];
-    const value   = changes?.value;
-    const messages = value?.messages;
+    let phone = '';
+    let text = '';
+    let pushName: string | undefined = undefined;
 
-    if (!messages || messages.length === 0) {
-      return NextResponse.json({ status: 'ok' }); // heartbeat ou status update
+    // ── 1. Formato Evolution API (messages.upsert) ────────────────────────────
+    const isEvolution =
+      body?.event === 'messages.upsert' ||
+      body?.event === 'messages' ||
+      Boolean(body?.data?.key);
+
+    if (isEvolution) {
+      const data = Array.isArray(body?.data) ? body.data[0] : body?.data;
+      if (!data) return NextResponse.json({ status: 'ignored_empty' });
+
+      const key = data?.key;
+      // Ignora mensagens enviadas pelo próprio corretor (evita loop)
+      if (key?.fromMe) {
+        return NextResponse.json({ status: 'ignored_from_me' });
+      }
+
+      const remoteJid: string = key?.remoteJid || '';
+      // Ignora mensagens de grupos do WhatsApp (@g.us) e broadcasts (@broadcast)
+      if (remoteJid.endsWith('@g.us') || remoteJid.includes('status@broadcast')) {
+        return NextResponse.json({ status: 'ignored_group' });
+      }
+
+      phone = sanitizeWhatsAppNumber(remoteJid);
+      pushName = data?.pushName || undefined;
+
+      // Extrai o texto da mensagem nos diversos formatos possíveis da Evolution API
+      const msg = data?.message;
+      text =
+        msg?.conversation ||
+        msg?.extendedTextMessage?.text ||
+        msg?.buttonsResponseMessage?.selectedButtonId ||
+        msg?.listResponseMessage?.singleSelectReply?.selectedRowId ||
+        '';
+      text = text.trim();
+    }
+    // ── 2. Fallback: Formato Meta Cloud API ────────────────────────────────────
+    else if (body?.entry?.[0]?.changes?.[0]?.value?.messages) {
+      const metaMsg = body.entry[0].changes[0].value.messages[0];
+      phone = sanitizeWhatsAppNumber(metaMsg?.from || '');
+      text = metaMsg?.text?.body?.trim() || '';
+      pushName = body.entry[0].changes[0].value?.contacts?.[0]?.profile?.name || undefined;
     }
 
-    const msg     = messages[0];
-    const phone   = msg?.from;
-    const text    = msg?.text?.body?.trim() || '';
-    const metaId  = entry?.id; // WhatsApp Business Account ID
+    // Se não houver remetente ou texto (ex: evento de status, confirmação de leitura), ignora
+    if (!phone || !text) {
+      return NextResponse.json({ status: 'ignored_no_text' });
+    }
 
-    if (!phone || !text) return NextResponse.json({ status: 'ok' });
-
-    // Busca configuração do SDR para este WABA
-    // Por ora, busca o primeiro config ativo (multi-tenant virá depois)
+    // Busca configuração ativa do SDR
     const config = await prisma.sdrConfig.findFirst({ where: { active: true } });
     if (!config) {
       // SDR desativado — ignora silenciosamente
@@ -71,18 +112,18 @@ export async function POST(req: NextRequest) {
     });
 
     if (!conversation) {
-      // Primeira mensagem — cria lead e conversa
+      // Primeira mensagem — cria lead e conversa com o pushName detectado
       const lead = await prisma.lead.create({
         data: {
-          name:    phone, // será atualizado quando capturarmos o nome
+          name:         pushName || phone,
           phone,
-          source:  'OUTRO',
-          interest: 'AUTO',
-          status:  'NOVO',
-          temp:    'MORNO',
-          ownerId: config.ownerId,
-          sdrStatus:  'EM_TRIAGEM',
-          sdrChannel: 'WHATSAPP',
+          source:       'WHATSAPP',
+          interest:     'AUTO',
+          status:       'NOVO',
+          temp:         'MORNO',
+          ownerId:      config.ownerId,
+          sdrStatus:    'EM_TRIAGEM',
+          sdrChannel:   'WHATSAPP',
           sdrStartedAt: new Date(),
         },
       });
@@ -93,43 +134,41 @@ export async function POST(req: NextRequest) {
 
       conversation = await prisma.sdrConversation.create({
         data: {
-          leadId:  lead.id,
-          ownerId: config.ownerId,
+          leadId:   lead.id,
+          ownerId:  config.ownerId,
           phone,
-          channel: 'WHATSAPP',
-          state:   'GREETING',
+          channel:  'WHATSAPP',
+          state:    'GREETING',
           messages: firstMessages,
-          score:   0,
-          active:  true,
+          score:    0,
+          active:   true,
         },
       });
 
-      // Envia mensagem de boas-vindas
-      await sendWhatsAppMessage(phone, DEFAULT_MESSAGES.GREETING);
-      return NextResponse.json({ status: 'ok' });
+      // Envia mensagem de boas-vindas com delay de digitação
+      await sendReply(phone, DEFAULT_MESSAGES.GREETING);
+      return NextResponse.json({ status: 'ok', action: 'conversation_started' });
     }
 
     // Conversa existente — processa mensagem
     const currentMessages = (conversation.messages as SdrMessage[]) || [];
     const userMsg: SdrMessage = { role: 'user', content: text, timestamp: new Date().toISOString() };
 
-    const currentCtx: SdrContext = {
-      score: conversation.score,
-      // extrai contexto salvo nas mensagens anteriores
-    };
-
     // Recupera contexto do lead
     const lead = await prisma.lead.findUnique({ where: { id: conversation.leadId } });
     if (!lead) return NextResponse.json({ status: 'ok' });
 
+    // Atualiza o nome se o lead tinha apenas o telefone e agora temos pushName
+    const resolvedName = (lead.name === phone && pushName) ? pushName : (lead.name !== phone ? lead.name : undefined);
+
     const ctx: SdrContext = {
-      score:       conversation.score,
-      intention:   lead.sdrIntention || undefined,
-      interest:    lead.sdrNeed      || undefined,
-      need:        lead.sdrNeed      || undefined,
-      deadline:    lead.sdrDeadline  || undefined,
-      name:        lead.name !== phone ? lead.name : undefined,
-      city:        lead.sdrCity      || undefined,
+      score:          conversation.score,
+      intention:      lead.sdrIntention || undefined,
+      interest:       lead.sdrNeed      || undefined,
+      need:           lead.sdrNeed      || undefined,
+      deadline:       lead.sdrDeadline  || undefined,
+      name:           resolvedName,
+      city:           lead.sdrCity      || undefined,
       classification: conversation.classification || undefined,
     };
 
@@ -158,7 +197,7 @@ export async function POST(req: NextRequest) {
       prisma.lead.update({
         where: { id: lead.id },
         data: {
-          name:              updatedCtx.name || lead.name,
+          name:              updatedCtx.name || resolvedName || lead.name,
           sdrStatus:         nextState === 'HANDOFF' ? 'TRANSFERIDO' : 'EM_TRIAGEM',
           sdrScore:          updatedCtx.score,
           sdrClassification: updatedCtx.classification,
@@ -192,37 +231,45 @@ export async function POST(req: NextRequest) {
     }
 
     // Envia resposta ao WhatsApp
-    await sendWhatsAppMessage(phone, botMessage);
+    await sendReply(phone, botMessage);
 
-    return NextResponse.json({ status: 'ok' });
+    return NextResponse.json({ status: 'ok', nextState });
   } catch (error) {
     console.error('[SDR Webhook]', error);
     return NextResponse.json({ status: 'error' }, { status: 500 });
   }
 }
 
-// ── Envia mensagem via Meta Cloud API ────────────────────────────────────────
-async function sendWhatsAppMessage(to: string, text: string): Promise<void> {
-  const token   = process.env.WHATSAPP_ACCESS_TOKEN;
-  const phoneId = process.env.WHATSAPP_PHONE_NUMBER_ID;
+// ── Despachador de resposta (Evolution API primária com fallback Meta) ────────
+async function sendReply(to: string, text: string): Promise<void> {
+  const evolutionUrl = process.env.EVOLUTION_API_URL;
+  const metaToken    = process.env.WHATSAPP_ACCESS_TOKEN;
+  const metaPhoneId  = process.env.WHATSAPP_PHONE_NUMBER_ID;
 
-  if (!token || !phoneId) {
-    // Modo dev: apenas loga
-    console.log(`[SDR → ${to}]`, text);
+  // 1. Se Evolution API estiver configurada (ou em modo dev padrão), usa Evolution
+  if (evolutionUrl || (!metaToken && !metaPhoneId)) {
+    await sendEvolutionTextMessage({
+      to,
+      text,
+      delayMs: 1500, // 1.5s de delay simulando digitação
+    });
     return;
   }
 
-  await fetch(`https://graph.facebook.com/v19.0/${phoneId}/messages`, {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${token}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      messaging_product: 'whatsapp',
-      to,
-      type: 'text',
-      text: { body: text },
-    }),
-  });
+  // 2. Fallback para Meta Cloud API se credenciais da Meta estiverem presentes
+  if (metaToken && metaPhoneId) {
+    await fetch(`https://graph.facebook.com/v19.0/${metaPhoneId}/messages`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${metaToken}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        messaging_product: 'whatsapp',
+        to,
+        type: 'text',
+        text: { body: text },
+      }),
+    });
+  }
 }

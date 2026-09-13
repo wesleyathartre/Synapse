@@ -26,8 +26,12 @@ export async function middleware(req: NextRequest) {
 
   const isPublic = PUBLIC_PATHS.some((p) => pathname.startsWith(p));
 
-  // API de auth e APIs públicas (ex.: formulário da Landing Page) são sempre liberadas
-  if (pathname.startsWith('/api/auth') || pathname.startsWith('/api/public')) {
+  // API de auth, APIs públicas e Webhooks externos (ex.: SDR) são sempre liberados
+  if (
+    pathname.startsWith('/api/auth') ||
+    pathname.startsWith('/api/public') ||
+    pathname.startsWith('/api/sdr/webhook')
+  ) {
     return NextResponse.next();
   }
 

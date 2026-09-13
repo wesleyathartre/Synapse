@@ -1,7 +1,6 @@
 'use client';
 
-import { Bot, Zap, MessageCircle, Settings, Lock, ChevronRight } from 'lucide-react';
-import Link from 'next/link';
+import { Bot, Zap, MessageCircle, Settings, QrCode, ChevronRight, ShieldCheck, Sparkles } from 'lucide-react';
 import { Card } from '@/components/ui';
 
 export default function SdrPage() {
@@ -14,21 +13,27 @@ export default function SdrPage() {
         </div>
         <div>
           <h1 className="text-2xl md:text-3xl font-bold text-slate-800">Synapse SDR</h1>
-          <p className="text-slate-500 text-sm">Assistente de pré-atendimento e qualificação</p>
+          <p className="text-slate-500 text-sm">Assistente de pré-atendimento e qualificação via WhatsApp</p>
         </div>
       </div>
 
-      {/* Banner fase 2 */}
-      <div className="mt-6 p-5 rounded-2xl bg-gradient-to-r from-brand-600 to-indigo-600 text-white mb-8">
+      {/* Banner Evolution API */}
+      <div className="mt-6 p-5 rounded-2xl bg-gradient-to-r from-brand-600 via-indigo-600 to-violet-600 text-white mb-8 shadow-sm">
         <div className="flex items-start gap-4">
-          <Zap size={32} className="shrink-0 mt-0.5" />
+          <div className="p-2.5 bg-white/10 rounded-xl backdrop-blur-sm">
+            <QrCode size={28} className="text-white" />
+          </div>
           <div>
-            <p className="font-bold text-lg">Fase 2 — Em preparação</p>
+            <div className="flex items-center gap-2">
+              <p className="font-bold text-lg">Integração nativa com Evolution API</p>
+              <span className="px-2 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-400/30">
+                WhatsApp Web / QR Code
+              </span>
+            </div>
             <p className="text-brand-100 text-sm mt-1 leading-relaxed">
-              O Synapse SDR está estruturado e pronto para ser ativado.
-              A integração com o WhatsApp Business (Meta Cloud API) será configurada
-              quando o webhook for registrado no Meta Developer Console e as credenciais
-              forem adicionadas ao ambiente.
+              O Synapse SDR opera conectado diretamente ao WhatsApp da sua corretora via Evolution API.
+              Você continua utilizando o WhatsApp normalmente no seu celular enquanto o robô faz a triagem
+              e qualificação automática dos leads com presença humanizada (delay de digitação).
             </p>
           </div>
         </div>
@@ -40,26 +45,26 @@ export default function SdrPage() {
           {
             icon: <MessageCircle size={20} className="text-emerald-600" />,
             bg: 'bg-emerald-50',
-            title: 'Recepção automática',
-            desc: 'Responde imediatamente ao primeiro contato no WhatsApp com mensagem de boas-vindas personalizada.',
+            title: 'Recepção e PushName',
+            desc: 'Responde ao primeiro contato no WhatsApp e já identifica o nome do cliente registrado no perfil.',
           },
           {
-            icon: <Bot size={20} className="text-brand-600" />,
+            icon: <ShieldCheck size={20} className="text-brand-600" />,
             bg: 'bg-brand-50',
-            title: 'Qualificação por regras',
-            desc: 'Faz perguntas de qualificação, coleta intenção, prazo e necessidade. Calcula score automaticamente.',
+            title: 'Humanização Anti-Bloqueio',
+            desc: 'Simula digitação ("digitando...") por 1.5s antes de enviar a resposta, mantendo comportamento natural.',
           },
           {
             icon: <Zap size={20} className="text-amber-600" />,
             bg: 'bg-amber-50',
-            title: 'Handoff inteligente',
-            desc: 'Transfere para humano no momento certo com resumo completo e score do lead.',
+            title: 'Handoff com Alerta no CRM',
+            desc: 'Ao qualificar o lead (ou a pedido do cliente), transfere para o corretor com resumo e tarefa imediata.',
           },
           {
             icon: <Settings size={20} className="text-violet-600" />,
             bg: 'bg-violet-50',
-            title: 'Configurável sem código',
-            desc: 'Edite mensagens, perguntas e pesos do score diretamente no painel.',
+            title: 'Filtro Anti-Loop e Grupos',
+            desc: 'Ignora automaticamente mensagens de grupos (@g.us) e mensagens enviadas pelo próprio corretor.',
           },
         ].map((item, i) => (
           <Card key={i} className="p-4 flex items-start gap-3">
@@ -72,41 +77,46 @@ export default function SdrPage() {
         ))}
       </div>
 
-      {/* Passos para ativar */}
-      <Card className="p-5">
+      {/* Passos para conectar */}
+      <Card className="p-6">
         <h2 className="font-bold text-slate-800 mb-4 flex items-center gap-2">
-          <Lock size={18} className="text-slate-500" /> Para ativar o SDR
+          <Sparkles size={18} className="text-brand-600" /> Como ativar o WhatsApp com a Evolution API
         </h2>
-        <ol className="space-y-3">
+        <ol className="space-y-4">
           {[
             {
               n: '1',
-              title: 'Criar conta no Meta Developer Console',
-              desc: 'Acesse developers.facebook.com e crie um app do tipo "Business".',
+              title: 'Subir ou acessar sua Evolution API',
+              desc: 'Tenha sua instância da Evolution API rodando (ex: Docker na VPS, Hetzner, DigitalOcean ou Railway).',
             },
             {
               n: '2',
-              title: 'Configurar o WhatsApp Business',
-              desc: 'Adicione um número de telefone e registre o webhook: POST /api/sdr/webhook',
+              title: 'Criar a instância e escanear o QR Code',
+              desc: 'Crie uma instância (ex: "synapse") e escaneie o QR Code no seu WhatsApp (Aparelhos conectados > Conectar aparelho).',
             },
             {
               n: '3',
-              title: 'Adicionar variáveis de ambiente',
-              desc: 'Configure WHATSAPP_ACCESS_TOKEN e WHATSAPP_PHONE_NUMBER_ID no .env e faça o deploy.',
+              title: 'Configurar o Webhook na Evolution API',
+              desc: 'No painel da Evolution, aponte a URL do Webhook para: https://seu-crm.com/api/sdr/webhook marcando o evento MESSAGES_UPSERT.',
             },
             {
               n: '4',
-              title: 'Ativar o SDR no Synapse',
-              desc: 'Na tela de configuração do SDR, ative o módulo e personalize o roteiro de atendimento.',
+              title: 'Definir as variáveis no ambiente (.env)',
+              desc: 'Preencha EVOLUTION_API_URL, EVOLUTION_API_KEY e EVOLUTION_INSTANCE_NAME.',
+            },
+            {
+              n: '5',
+              title: 'Ativar a configuração do SDR no banco',
+              desc: 'Certifique-se de que a tabela SdrConfig esteja com active: true para o seu usuário corretor.',
             },
           ].map((step) => (
-            <li key={step.n} className="flex items-start gap-3">
+            <li key={step.n} className="flex items-start gap-3.5">
               <span className="w-6 h-6 rounded-full bg-brand-100 text-brand-700 text-xs font-bold flex items-center justify-center shrink-0 mt-0.5">
                 {step.n}
               </span>
               <div>
                 <p className="text-sm font-semibold text-slate-800">{step.title}</p>
-                <p className="text-xs text-slate-500 mt-0.5">{step.desc}</p>
+                <p className="text-xs text-slate-500 mt-0.5 leading-relaxed">{step.desc}</p>
               </div>
             </li>
           ))}
@@ -118,7 +128,7 @@ export default function SdrPage() {
         <h2 className="font-bold text-slate-800 mb-4">Fluxo do atendimento SDR</h2>
         <div className="flex flex-wrap items-center gap-2 text-xs">
           {[
-            'WhatsApp / LP',
+            'WhatsApp (Evolution API)',
             'Boas-vindas',
             'Identificar intenção',
             'Capturar interesse',
@@ -126,7 +136,7 @@ export default function SdrPage() {
             'Capturar prazo',
             'Capturar contato',
             'Calcular score',
-            'Handoff → CRM',
+            'Handoff → Corretor',
           ].map((step, i, arr) => (
             <div key={i} className="flex items-center gap-2">
               <span className="px-2.5 py-1 rounded-full bg-slate-100 text-slate-700 font-medium whitespace-nowrap">
@@ -137,7 +147,7 @@ export default function SdrPage() {
           ))}
         </div>
         <p className="text-xs text-slate-400 mt-3">
-          Em qualquer etapa: digitar &quot;atendente&quot; transfere imediatamente para humano.
+          Em qualquer etapa: digitar &quot;atendente&quot; transfere imediatamente para humano e cria uma tarefa prioritária no CRM.
         </p>
       </Card>
     </div>
