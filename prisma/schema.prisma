@@ -28,16 +28,23 @@ model User {
   marketingConsent Boolean   @default(false) // opt-in de comunicações
   lastLoginAt      DateTime?
 
+  // Notificações de boletos a vencer
+  notifyBoletos    Boolean   @default(true)  // ativa/desativa avisos de boletos
+  notifyDayOfWeek  Int       @default(1)     // 0=Dom 1=Seg 2=Ter 3=Qua 4=Qui 5=Sex 6=Sáb
+  notifyEmail      String?                   // email alternativo para os avisos (null = usa email do usuário)
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  leads       Lead[]
-  clients     Client[]
-  deals       Deal[]
-  policies    Policy[]
-  activities  Activity[]
-  consentLogs ConsentLog[]
-  auditLogs   AuditLog[]
+  leads            Lead[]
+  clients          Client[]
+  deals            Deal[]
+  policies         Policy[]
+  activities       Activity[]
+  consentLogs      ConsentLog[]
+  auditLogs        AuditLog[]
+  boletos          Boleto[]
+  sdrConversations SdrConversation[]
 }
 
 // ==================== LGPD — TRILHA DE CONSENTIMENTO ====================
@@ -89,13 +96,34 @@ model Lead {
   temp      String   @default("MORNO")  // FRIO | MORNO | QUENTE
   notes     String?
   ownerId   String
+
+  // ---- Campos SDR (Fase 2 — preenchidos pelo agente de pré-atendimento) ----
+  sdrStatus          String?   // NOVO | EM_TRIAGEM | QUALIFICADO | TRANSFERIDO | DESCARTADO
+  sdrScore           Int?      // 0-100
+  sdrClassification  String?   // QUENTE | MORNO | FRIO | NAO_QUALIFICADO
+  sdrChannel         String?   // WHATSAPP | LANDING_PAGE | INSTAGRAM | INDICACAO
+  sdrIntention       String?   // ORCAMENTO | CONHECER | AGENDAR | JA_CLIENTE | HUMANO
+  sdrNeed            String?   // descrição livre da necessidade relatada
+  sdrDeadline        String?   // IMEDIATO | ATE_30_DIAS | PESQUISANDO | SEM_PREVISAO
+  sdrCity            String?
+  sdrIsDecisionMaker String?   // SIM | NAO | NAO_INFORMADO
+  sdrSummary         String?   // resumo gerado pelo agente
+  sdrNextAction      String?   // ATENDIMENTO_HUMANO | ORCAMENTO | AGENDAR | NUTRIR
+  sdrAssignedTo      String?   // userId do responsável pelo atendimento humano
+  sdrDiscardReason   String?
+  sdrStartedAt       DateTime?
+  sdrTransferredAt   DateTime?
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  owner User @relation(fields: [ownerId], references: [id])
+  owner            User              @relation(fields: [ownerId], references: [id])
+  sdrConversations SdrConversation[]
 
   @@index([status])
   @@index([ownerId])
+  @@index([sdrStatus])
+  @@index([sdrScore])
 }
 
 // ==================== CLIENTES / SEGURADOS ====================
@@ -117,6 +145,7 @@ model Client {
   owner    User     @relation(fields: [ownerId], references: [id])
   deals    Deal[]
   policies Policy[]
+  boletos  Boleto[]
 
   @@index([ownerId])
 }
@@ -146,6 +175,7 @@ model Deal {
   owner      User       @relation(fields: [ownerId], references: [id])
   activities Activity[]
   policies   Policy[]
+  boletos    Boleto[]
 
   @@index([stage])
   @@index([status])
@@ -154,26 +184,30 @@ model Deal {
 
 // ==================== APÓLICES ====================
 model Policy {
-  id         String   @id @default(cuid())
-  number     String   @unique
-  product    String   @default("AUTO")
-  insurer    String
-  clientId   String
-  clientName String
-  premium    Float    @default(0)
-  commission Float    @default(0)
-  startDate  DateTime @default(now())
-  endDate    DateTime // data de renovação
-  status     String   @default("ATIVA") // ATIVA | A_VENCER | VENCIDA | CANCELADA | RENOVADA
-  dealId     String?
-  ownerId    String
-  notes      String?
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+  id              String   @id @default(cuid())
+  number          String   @unique
+  product         String   @default("AUTO")
+  insurer         String
+  clientId        String
+  clientName      String
+  premium         Float    @default(0)
+  commission      Float    @default(0)
+  startDate       DateTime @default(now())
+  endDate         DateTime // data de renovação
+  status          String   @default("ATIVA") // ATIVA | A_VENCER | VENCIDA | CANCELADA | RENOVADA
+  dealId          String?
+  ownerId         String
+  notes           String?
+  // Parcelamento — para gerar boletos automáticos
+  paymentType     String   @default("UNICO") // UNICO | MENSAL | TRIMESTRAL | SEMESTRAL | ANUAL
+  installments    Int      @default(1)       // número de parcelas
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
 
-  client Client @relation(fields: [clientId], references: [id])
-  owner  User   @relation(fields: [ownerId], references: [id])
-  deal   Deal?  @relation(fields: [dealId], references: [id])
+  client  Client   @relation(fields: [clientId], references: [id])
+  owner   User     @relation(fields: [ownerId], references: [id])
+  deal    Deal?    @relation(fields: [dealId], references: [id])
+  boletos Boleto[]
 
   @@index([status])
   @@index([endDate])
@@ -221,5 +255,85 @@ model Product {
 
   @@index([category])
   @@index([active])
+}
+
+// ==================== BOLETOS / PARCELAS ====================
+// Parcelas vinculadas a apólices, deals ou lançadas manualmente.
+model Boleto {
+  id          String    @id @default(cuid())
+  clientId    String
+  clientName  String    // desnormalizado para facilitar listagens
+  policyId    String?
+  dealId      String?
+  ownerId     String
+  description String    // ex: "Parcela 3/12 — Consórcio Auto"
+  amount      Float
+  dueDate     DateTime  // data de vencimento
+  status      String    @default("PENDENTE") // PENDENTE | PAGO | VENCIDO | CANCELADO
+  paidAt      DateTime?
+  barcode     String?   // linha digitável (preenchida manualmente)
+  notes       String?
+  // origem: MANUAL = lançado pelo corretor; AUTO = gerado pela apólice
+  origin      String    @default("MANUAL")  // MANUAL | AUTO
+  installmentNumber Int? // número da parcela (ex: 3 de 12)
+  installmentTotal  Int? // total de parcelas
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  client Client  @relation(fields: [clientId], references: [id])
+  policy Policy? @relation(fields: [policyId], references: [id])
+  deal   Deal?   @relation(fields: [dealId], references: [id])
+  owner  User    @relation(fields: [ownerId], references: [id])
+
+  @@index([dueDate])
+  @@index([status])
+  @@index([ownerId])
+  @@index([clientId])
+  @@index([policyId])
+}
+
+// ==================== SDR — CONVERSAS DE PRÉ-ATENDIMENTO ====================
+// Histórico de cada atendimento iniciado pelo Synapse SDR (Fase 2).
+// Estrutura preparada; integração WhatsApp ativada na Fase 2.
+model SdrConversation {
+  id            String    @id @default(cuid())
+  leadId        String
+  ownerId       String
+  channel       String    @default("WHATSAPP") // WHATSAPP | INSTAGRAM | WEB
+  phone         String    // número de contato (identificador da conversa)
+  state         String    @default("GREETING") // estado atual da máquina de estados
+  messages      Json      @default("[]")        // array de { role, content, timestamp }
+  score         Int       @default(0)
+  classification String?  // QUENTE | MORNO | FRIO | NAO_QUALIFICADO
+  active        Boolean   @default(true)        // false = conversa encerrada / transferida
+  transferredAt DateTime?
+  closedAt      DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  lead  Lead @relation(fields: [leadId], references: [id])
+  owner User @relation(fields: [ownerId], references: [id])
+
+  @@index([phone])
+  @@index([active])
+  @@index([leadId])
+  @@index([ownerId])
+}
+
+// ==================== SDR — CONFIGURAÇÃO DO FLUXO ====================
+// Configurações globais do SDR: mensagens, pesos do score, etc.
+// Uma linha por tenant (ownerId). Fase 2.
+model SdrConfig {
+  id                String   @id @default(cuid())
+  ownerId           String   @unique
+  active            Boolean  @default(false)  // SDR ativado?
+  welcomeMessage    String?  // mensagem de boas-vindas customizada
+  scoreWeights      Json     @default("{}")   // pesos configuráveis do score
+  allowedRegions    String?  // regiões atendidas (texto livre)
+  handoffThreshold  Int      @default(60)     // score mínimo para handoff automático
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@index([ownerId])
 }
 

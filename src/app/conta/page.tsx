@@ -7,7 +7,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { Card, Field, Input, Button, Modal } from '@/components/ui';
 import { formatDateTime } from '@/lib/format';
 import {
-  UserCog, ShieldCheck, Download, Trash2, KeyRound, Mail, ArrowLeft, Loader2, CheckCircle2,
+  UserCog, ShieldCheck, Download, Trash2, KeyRound, Mail, ArrowLeft, Loader2, CheckCircle2, Bell,
 } from 'lucide-react';
 
 interface Account {
@@ -42,6 +42,12 @@ export default function ContaPage() {
   const [savingPass, setSavingPass] = useState(false);
   const [passMsg, setPassMsg] = useState('');
 
+  // notificações de boletos
+  const [notifyBoletos,    setNotifyBoletos]    = useState(true);
+  const [notifyDayOfWeek, setNotifyDayOfWeek]  = useState(1);
+  const [notifyEmail,     setNotifyEmail]      = useState('');
+  const [savingNotify,    setSavingNotify]     = useState(false);
+
   // exclusão
   const [showDelete, setShowDelete] = useState(false);
   const [delPassword, setDelPassword] = useState('');
@@ -56,6 +62,14 @@ export default function ContaPage() {
       setName(data.user.name);
       setPhone(data.user.phone || '');
       setMarketing(data.user.marketingConsent);
+    }
+    // Notificações
+    const notifyRes = await fetch('/api/account/notify');
+    const notifyData = await notifyRes.json();
+    if (notifyData) {
+      setNotifyBoletos(notifyData.notifyBoletos ?? true);
+      setNotifyDayOfWeek(notifyData.notifyDayOfWeek ?? 1);
+      setNotifyEmail(notifyData.notifyEmail || '');
     }
     setLoading(false);
   };
@@ -214,6 +228,76 @@ export default function ContaPage() {
           <Link href="/privacidade" className="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold text-slate-600 hover:bg-slate-100 transition-colors">
             <ShieldCheck size={16} /> Ler Política de Privacidade
           </Link>
+        </div>
+      </Card>
+
+      {/* Notificações de Boletos */}
+      <Card className="p-5 mb-6">
+        <div className="flex items-center gap-2 mb-4">
+          <Bell size={18} className="text-brand-600" />
+          <h2 className="font-bold text-slate-800">Avisos de boletos a vencer</h2>
+        </div>
+        <div className="space-y-4">
+          <label className="flex items-center gap-2 text-sm text-slate-700 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={notifyBoletos}
+              onChange={(e) => setNotifyBoletos(e.target.checked)}
+              className="accent-brand-600 w-4 h-4"
+              id="chk-notify-boletos"
+            />
+            Ativar aviso semanal de boletos a vencer
+          </label>
+
+          {notifyBoletos && (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pl-6">
+              <Field label="Dia da semana para o aviso">
+                <select
+                  id="select-notify-day"
+                  value={notifyDayOfWeek}
+                  onChange={(e) => setNotifyDayOfWeek(Number(e.target.value))}
+                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm outline-none bg-white focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500"
+                >
+                  <option value={0}>Domingo</option>
+                  <option value={1}>Segunda-feira</option>
+                  <option value={2}>Terça-feira</option>
+                  <option value={3}>Quarta-feira</option>
+                  <option value={4}>Quinta-feira</option>
+                  <option value={5}>Sexta-feira</option>
+                  <option value={6}>Sábado</option>
+                </select>
+              </Field>
+              <Field label="E-mail para receber (deixe vazio para usar o da conta)">
+                <Input
+                  id="input-notify-email"
+                  type="email"
+                  value={notifyEmail}
+                  onChange={(e) => setNotifyEmail(e.target.value)}
+                  placeholder={acc?.email || ''}
+                />
+              </Field>
+            </div>
+          )}
+
+          <div className="flex justify-end">
+            <Button
+              id="btn-salvar-notificacoes"
+              variant="secondary"
+              disabled={savingNotify}
+              onClick={async () => {
+                setSavingNotify(true);
+                await fetch('/api/account/notify', {
+                  method: 'PATCH',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ notifyBoletos, notifyDayOfWeek, notifyEmail: notifyEmail || null }),
+                });
+                setSavingNotify(false);
+                flash('Preferências de notificação salvas.');
+              }}
+            >
+              {savingNotify ? 'Salvando...' : 'Salvar preferências'}
+            </Button>
+          </div>
         </div>
       </Card>
 

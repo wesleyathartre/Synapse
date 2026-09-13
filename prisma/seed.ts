@@ -12,6 +12,9 @@ async function main() {
 
   // Limpa em ordem de dependência
   await prisma.activity.deleteMany();
+  await prisma.boleto.deleteMany();
+  await prisma.sdrConversation.deleteMany();
+  await prisma.sdrConfig.deleteMany();
   await prisma.policy.deleteMany();
   await prisma.deal.deleteMany();
   await prisma.client.deleteMany();
@@ -218,6 +221,35 @@ async function main() {
         endDate,
         status,
         ownerId: rand(owners),
+      },
+    });
+  }
+
+  // ----- Boletos a Vencer -----
+  const createdPolicies = await prisma.policy.findMany();
+  const dueOffsets = [-4, 1, 2, 4, 7, 12, 20];
+  for (let i = 0; i < createdPolicies.length; i++) {
+    const pol = createdPolicies[i];
+    const offset = dueOffsets[i % dueOffsets.length];
+    const dueDate = daysFromNow(offset);
+    const amount = Math.round((pol.premium / 4) * 100) / 100;
+    const isPaid = offset < -2;
+
+    await prisma.boleto.create({
+      data: {
+        clientId: pol.clientId,
+        clientName: pol.clientName,
+        policyId: pol.id,
+        ownerId: pol.ownerId,
+        description: `Parcela ${(i % 4) + 1}/4 — Seguro ${pol.product}`,
+        amount,
+        dueDate,
+        status: isPaid ? 'PAGO' : (offset < 0 ? 'VENCIDO' : 'PENDENTE'),
+        paidAt: isPaid ? daysFromNow(offset - 1) : null,
+        barcode: `34191.79001 01043.510047 91020.150008 8 ${8000 + i}00000${Math.floor(amount)}`,
+        origin: 'AUTO',
+        installmentNumber: (i % 4) + 1,
+        installmentTotal: 4,
       },
     });
   }

@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import {
   ResponsiveContainer,
   BarChart,
@@ -23,9 +23,14 @@ import {
   CheckSquare,
   Target,
   Award,
+  Receipt,
+  AlertTriangle,
+  Clock,
+  ChevronRight,
 } from 'lucide-react';
+import Link from 'next/link';
 import { Card, StatCard, Badge } from '@/components/ui';
-import { money, moneyShort, formatDate, daysUntil } from '@/lib/format';
+import { money, moneyShort, formatDate, daysUntil, cx } from '@/lib/format';
 import { STAGE_MAP, POLICY_STATUS } from '@/lib/constants';
 import { useProducts } from '@/contexts/ProductsContext';
 
@@ -46,10 +51,20 @@ interface DashboardData {
   wonByMonth: { mes: string; comissao: number; premio: number }[];
 }
 
+interface Boleto {
+  id: string;
+  clientName: string;
+  description: string;
+  amount: number;
+  dueDate: string;
+  status: string;
+}
+
 export default function DashboardPage() {
   const { map: PRODUCTS } = useProducts();
   const [data, setData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [boletos, setBoletos] = useState<Boleto[]>([]);
 
   useEffect(() => {
     fetch('/api/dashboard')
@@ -66,6 +81,12 @@ export default function DashboardPage() {
       })
       .catch(() => setData(null))
       .finally(() => setLoading(false));
+
+    // Boletos da semana
+    fetch('/api/boletos?range=week')
+      .then((r) => r.json())
+      .then((d) => setBoletos(Array.isArray(d.data) ? d.data.slice(0, 6) : []))
+      .catch(() => {});
   }, []);
 
   if (loading || !data) {
@@ -250,6 +271,66 @@ export default function DashboardPage() {
           )}
         </Card>
       </div>
+
+      {/* Widget — Boletos da Semana */}
+      <Card className="mt-6 p-5">
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-2">
+            <Receipt size={18} className="text-brand-600" />
+            <h2 className="font-bold text-slate-800">Boletos a vencer esta semana</h2>
+            {boletos.filter((b) => b.status !== 'PAGO' && b.status !== 'CANCELADO').length > 0 && (
+              <span className="px-2 py-0.5 rounded-full text-xs font-bold bg-red-100 text-red-600">
+                {boletos.filter((b) => b.status !== 'PAGO' && b.status !== 'CANCELADO').length}
+              </span>
+            )}
+          </div>
+          <Link
+            href="/boletos"
+            className="text-xs text-brand-600 hover:text-brand-700 font-semibold flex items-center gap-1"
+          >
+            Ver todos <ChevronRight size={14} />
+          </Link>
+        </div>
+
+        {boletos.length === 0 ? (
+          <p className="text-sm text-slate-400 text-center py-8">Nenhum boleto a vencer esta semana. 🎉</p>
+        ) : (
+          <div className="divide-y divide-slate-100">
+            {boletos.map((b) => {
+              const d = daysUntil(b.dueDate);
+              return (
+                <div key={b.id} className="flex items-center justify-between py-2.5">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className={cx(
+                      'w-2 h-2 rounded-full shrink-0',
+                      d < 0   ? 'bg-red-500' :
+                      d === 0 ? 'bg-red-400' :
+                      d <= 3  ? 'bg-amber-400' :
+                      'bg-emerald-400',
+                    )} />
+                    <div className="min-w-0">
+                      <p className="text-sm font-semibold text-slate-700 truncate">{b.clientName}</p>
+                      <p className="text-xs text-slate-400 truncate">{b.description}</p>
+                    </div>
+                  </div>
+                  <div className="text-right shrink-0 ml-4">
+                    <p className="text-sm font-bold text-slate-800">{money(b.amount)}</p>
+                    <p className={cx(
+                      'text-xs font-semibold',
+                      d < 0   ? 'text-red-500' :
+                      d === 0 ? 'text-red-500' :
+                      d <= 3  ? 'text-amber-500' :
+                      'text-slate-400',
+                    )}>
+                      {d < 0 ? `${Math.abs(d)}d atraso` : d === 0 ? 'Hoje' : `${d}d`}
+                    </p>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </Card>
     </div>
   );
 }

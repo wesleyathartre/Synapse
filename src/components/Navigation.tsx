@@ -14,20 +14,26 @@ import {
   LogOut,
   Shield,
   Package,
+  Receipt,
+  Upload,
+  Bot,
 } from 'lucide-react';
 
 export const NAV = [
-  { href: '/', label: 'Dashboard', icon: LayoutDashboard },
-  { href: '/funil', label: 'Funil', icon: KanbanSquare },
-  { href: '/leads', label: 'Leads', icon: UserPlus },
-  { href: '/clientes', label: 'Clientes', icon: Users },
-  { href: '/apolices', label: 'Apólices', icon: FileText },
-  { href: '/tarefas', label: 'Tarefas', icon: CheckSquare },
+  { href: '/',         label: 'Dashboard', icon: LayoutDashboard },
+  { href: '/funil',    label: 'Funil',     icon: KanbanSquare },
+  { href: '/leads',    label: 'Leads',     icon: UserPlus },
+  { href: '/clientes', label: 'Clientes',  icon: Users },
+  { href: '/apolices', label: 'Apólices',  icon: FileText },
+  { href: '/boletos',  label: 'Boletos',   icon: Receipt },
+  { href: '/tarefas',  label: 'Tarefas',   icon: CheckSquare },
 ];
 
 // Itens visíveis apenas para administradores
 export const ADMIN_NAV = [
-  { href: '/produtos', label: 'Produtos', icon: Package },
+  { href: '/produtos',   label: 'Produtos',   icon: Package },
+  { href: '/importacao', label: 'Importação', icon: Upload },
+  { href: '/sdr',        label: 'SDR',        icon: Bot },
 ];
 
 // ------- Sidebar (desktop) -------
