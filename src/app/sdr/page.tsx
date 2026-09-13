@@ -1,6 +1,6 @@
 'use client';
 
-import { Bot, Zap, MessageCircle, Settings, QrCode, ChevronRight, ShieldCheck, Sparkles } from 'lucide-react';
+import { Bot, Zap, MessageCircle, Settings, Lock, ChevronRight } from 'lucide-react';
 import { Card } from '@/components/ui';
 
 export default function SdrPage() {
@@ -17,23 +17,21 @@ export default function SdrPage() {
         </div>
       </div>
 
-      {/* Banner Evolution API */}
-      <div className="mt-6 p-5 rounded-2xl bg-gradient-to-r from-brand-600 via-indigo-600 to-violet-600 text-white mb-8 shadow-sm">
+      {/* Banner Meta Cloud API */}
+      <div className="mt-6 p-5 rounded-2xl bg-gradient-to-r from-brand-600 to-indigo-600 text-white mb-8 shadow-sm">
         <div className="flex items-start gap-4">
-          <div className="p-2.5 bg-white/10 rounded-xl backdrop-blur-sm">
-            <QrCode size={28} className="text-white" />
-          </div>
+          <Zap size={32} className="shrink-0 mt-0.5" />
           <div>
             <div className="flex items-center gap-2">
-              <p className="font-bold text-lg">Integração nativa com Evolution API</p>
+              <p className="font-bold text-lg">WhatsApp Oficial (Meta Cloud API)</p>
               <span className="px-2 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-400/30">
-                WhatsApp Web / QR Code
+                100% Serverless / Vercel
               </span>
             </div>
             <p className="text-brand-100 text-sm mt-1 leading-relaxed">
-              O Synapse SDR opera conectado diretamente ao WhatsApp da sua corretora via Evolution API.
-              Você continua utilizando o WhatsApp normalmente no seu celular enquanto o robô faz a triagem
-              e qualificação automática dos leads com presença humanizada (delay de digitação).
+              O Synapse SDR opera conectado diretamente aos servidores da Meta (WhatsApp Business Platform).
+              Não requer servidores VPS adicionais nem processos contínuos — toda a mensageria e triagem de leads
+              roda de forma nativa e segura na Vercel e no Supabase.
             </p>
           </div>
         </div>
@@ -45,26 +43,26 @@ export default function SdrPage() {
           {
             icon: <MessageCircle size={20} className="text-emerald-600" />,
             bg: 'bg-emerald-50',
-            title: 'Recepção e PushName',
-            desc: 'Responde ao primeiro contato no WhatsApp e já identifica o nome do cliente registrado no perfil.',
+            title: 'Recepção automática',
+            desc: 'Responde imediatamente ao primeiro contato no WhatsApp com mensagem de boas-vindas personalizada.',
           },
           {
-            icon: <ShieldCheck size={20} className="text-brand-600" />,
+            icon: <Bot size={20} className="text-brand-600" />,
             bg: 'bg-brand-50',
-            title: 'Humanização Anti-Bloqueio',
-            desc: 'Simula digitação ("digitando...") por 1.5s antes de enviar a resposta, mantendo comportamento natural.',
+            title: 'Qualificação por regras',
+            desc: 'Faz perguntas de qualificação, coleta intenção, prazo e necessidade. Calcula score automaticamente.',
           },
           {
             icon: <Zap size={20} className="text-amber-600" />,
             bg: 'bg-amber-50',
-            title: 'Handoff com Alerta no CRM',
-            desc: 'Ao qualificar o lead (ou a pedido do cliente), transfere para o corretor com resumo e tarefa imediata.',
+            title: 'Handoff inteligente',
+            desc: 'Transfere para humano no momento certo com resumo completo e score do lead salvo no CRM.',
           },
           {
             icon: <Settings size={20} className="text-violet-600" />,
             bg: 'bg-violet-50',
-            title: 'Filtro Anti-Loop e Grupos',
-            desc: 'Ignora automaticamente mensagens de grupos (@g.us) e mensagens enviadas pelo próprio corretor.',
+            title: 'Configurável sem código',
+            desc: 'Edite mensagens, perguntas e pesos do score diretamente no painel.',
           },
         ].map((item, i) => (
           <Card key={i} className="p-4 flex items-start gap-3">
@@ -77,40 +75,35 @@ export default function SdrPage() {
         ))}
       </div>
 
-      {/* Passos para conectar */}
+      {/* Passos para ativar */}
       <Card className="p-6">
         <h2 className="font-bold text-slate-800 mb-4 flex items-center gap-2">
-          <Sparkles size={18} className="text-brand-600" /> Como ativar o WhatsApp com a Evolution API
+          <Lock size={18} className="text-slate-500" /> Como ativar no Meta Developer Console
         </h2>
-        <ol className="space-y-4">
+        <ol className="space-y-3.5">
           {[
             {
               n: '1',
-              title: 'Subir ou acessar sua Evolution API',
-              desc: 'Tenha sua instância da Evolution API rodando (ex: Docker na VPS, Hetzner, DigitalOcean ou Railway).',
+              title: 'Acessar o Meta Developer Console',
+              desc: 'Acesse developers.facebook.com, faça login e crie ou acesse seu app do tipo "Business" com o produto WhatsApp ativado.',
             },
             {
               n: '2',
-              title: 'Criar a instância e escanear o QR Code',
-              desc: 'Crie uma instância (ex: "synapse") e escaneie o QR Code no seu WhatsApp (Aparelhos conectados > Conectar aparelho).',
+              title: 'Configurar o Webhook',
+              desc: 'Em WhatsApp > Configuração, adicione o URL de retorno: https://seu-dominio.vercel.app/api/sdr/webhook e o token de verificação (padrão: synapse-sdr-token). Marque o campo "messages".',
             },
             {
               n: '3',
-              title: 'Configurar o Webhook na Evolution API',
-              desc: 'No painel da Evolution, aponte a URL do Webhook para: https://seu-crm.com/api/sdr/webhook marcando o evento MESSAGES_UPSERT.',
+              title: 'Adicionar variáveis de ambiente na Vercel',
+              desc: 'No painel da Vercel (Settings > Environment Variables), adicione WHATSAPP_ACCESS_TOKEN e WHATSAPP_PHONE_NUMBER_ID.',
             },
             {
               n: '4',
-              title: 'Definir as variáveis no ambiente (.env)',
-              desc: 'Preencha EVOLUTION_API_URL, EVOLUTION_API_KEY e EVOLUTION_INSTANCE_NAME.',
-            },
-            {
-              n: '5',
-              title: 'Ativar a configuração do SDR no banco',
-              desc: 'Certifique-se de que a tabela SdrConfig esteja com active: true para o seu usuário corretor.',
+              title: 'Ativar o SDR no Synapse',
+              desc: 'No banco ou painel do Synapse, certifique-se de que a tabela SdrConfig esteja com active: true para o seu corretor.',
             },
           ].map((step) => (
-            <li key={step.n} className="flex items-start gap-3.5">
+            <li key={step.n} className="flex items-start gap-3">
               <span className="w-6 h-6 rounded-full bg-brand-100 text-brand-700 text-xs font-bold flex items-center justify-center shrink-0 mt-0.5">
                 {step.n}
               </span>
@@ -128,7 +121,7 @@ export default function SdrPage() {
         <h2 className="font-bold text-slate-800 mb-4">Fluxo do atendimento SDR</h2>
         <div className="flex flex-wrap items-center gap-2 text-xs">
           {[
-            'WhatsApp (Evolution API)',
+            'WhatsApp (Meta Cloud API)',
             'Boas-vindas',
             'Identificar intenção',
             'Capturar interesse',
