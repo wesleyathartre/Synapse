@@ -35,6 +35,8 @@ export type SdrContext = {
   deadline?: string;    // IMEDIATO | ATE_30_DIAS | PESQUISANDO | SEM_PREVISAO
   name?: string;
   city?: string;
+  phone?: string;       // capturado no canal WEB (no WhatsApp já vem do número)
+  email?: string;       // opcional, capturado no canal WEB
   isDecisionMaker?: string;
   score: number;
   classification?: string; // QUENTE | MORNO | FRIO | NAO_QUALIFICADO

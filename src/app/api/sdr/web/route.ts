@@ -15,6 +15,7 @@ import { rateLimit } from '@/lib/rate-limit';
 import { getClientIp } from '@/lib/audit';
 import {
   processUserMessage,
+  calculateScore,
   generateHandoffSummary,
   DEFAULT_MESSAGES,
   type SdrContext,
@@ -23,6 +24,12 @@ import {
 } from '@/lib/sdr-engine';
 
 const WEB_PLACEHOLDER_NAME = 'Visitante (site)';
+
+// Estado exclusivo do canal WEB: após a qualificação, pedimos telefone/e-mail
+// para transformar a conversa em um lead que o corretor consegue retornar.
+const WEB_CONTACT_STATE = 'CAPTURE_CONTACT_WEB';
+const WEB_CONTACT_PROMPT =
+  'Quase lá! 📞 Para um especialista entrar em contato, me informe seu *telefone/WhatsApp com DDD* e, se puder, seu *e-mail*.';
 
 function corsHeaders(): Record<string, string> {
   const origin = process.env.LANDING_ORIGIN || '*';
@@ -116,6 +123,7 @@ export async function POST(req: NextRequest) {
   }
 
   // Reconstrói o contexto a partir do lead + conversa.
+  const hasRealPhone = !lead.phone.startsWith('site:');
   const ctx: SdrContext = {
     score: conversation.score,
     intention: lead.sdrIntention || undefined,
@@ -124,22 +132,56 @@ export async function POST(req: NextRequest) {
     deadline: lead.sdrDeadline || undefined,
     name: lead.name !== WEB_PLACEHOLDER_NAME ? lead.name : undefined,
     city: lead.sdrCity || undefined,
+    phone: hasRealPhone ? lead.phone : undefined,
+    email: lead.email || undefined,
     classification: conversation.classification || undefined,
   };
 
-  const { nextState, updatedCtx, botMessage } = processUserMessage(
-    conversation.state as SdrState,
-    message,
-    ctx,
-  );
+  const currentState = conversation.state as string;
+
+  let nextState: string;
+  let updatedCtx: SdrContext;
+  let botMessage: string;
+  let isHandoff = false; // handoff DEFINITIVO (já com contato) → cria tarefa e encerra
+
+  if (currentState === WEB_CONTACT_STATE) {
+    // Aguardando telefone/e-mail para transformar a conversa em lead acionável.
+    const digits = message.replace(/\D/g, '');
+    const email = message.match(/[^\s@]+@[^\s@]+\.[^\s@]+/)?.[0];
+    if (digits.length < 10 || digits.length > 13) {
+      nextState = WEB_CONTACT_STATE;
+      updatedCtx = ctx;
+      botMessage =
+        'Preciso de um telefone válido com DDD para o corretor te retornar. Ex: (11) 98888-7777. Pode enviar de novo? 🙂';
+    } else {
+      updatedCtx = { ...ctx, phone: digits, email: email || ctx.email };
+      const scored = calculateScore(updatedCtx);
+      updatedCtx = { ...updatedCtx, score: scored.score, classification: scored.classification };
+      nextState = 'HANDOFF';
+      botMessage = DEFAULT_MESSAGES.HANDOFF;
+      isHandoff = true;
+    }
+  } else {
+    const res = processUserMessage(currentState as SdrState, message, ctx);
+    if (res.nextState === 'HANDOFF' && !hasRealPhone) {
+      // No canal web ainda não temos contato: pede telefone/e-mail antes de encerrar.
+      nextState = WEB_CONTACT_STATE;
+      updatedCtx = res.updatedCtx;
+      botMessage = WEB_CONTACT_PROMPT;
+    } else {
+      nextState = res.nextState;
+      updatedCtx = res.updatedCtx;
+      botMessage = res.botMessage;
+      isHandoff = res.nextState === 'HANDOFF';
+    }
+  }
 
   const currentMessages = (conversation.messages as unknown as SdrMessage[]) || [];
   const userMsg: SdrMessage = { role: 'user', content: message, timestamp: new Date().toISOString() };
   const botMsg: SdrMessage = { role: 'bot', content: botMessage, timestamp: new Date().toISOString() };
   const updatedMessages = [...currentMessages, userMsg, botMsg];
 
-  const isHandoff = nextState === 'HANDOFF';
-  const handoffPhone = 'via chat do site';
+  const handoffPhone = updatedCtx.phone || 'via chat do site';
 
   await prisma.$transaction([
     prisma.sdrConversation.update({
@@ -157,6 +199,9 @@ export async function POST(req: NextRequest) {
       where: { id: lead.id },
       data: {
         name: updatedCtx.name || lead.name,
+        phone: updatedCtx.phone || lead.phone,
+        email: updatedCtx.email || lead.email || undefined,
+        status: isHandoff ? 'EM_CONTATO' : lead.status,
         sdrStatus: isHandoff ? 'TRANSFERIDO' : 'EM_TRIAGEM',
         sdrScore: updatedCtx.score,
         sdrClassification: updatedCtx.classification,
