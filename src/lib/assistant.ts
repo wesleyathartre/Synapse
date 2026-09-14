@@ -176,7 +176,7 @@ export async function answerQuestion(question: string, where: Scope): Promise<As
 
   // Fallback determinístico (sem IA): entrega o resumo real da base.
   return {
-    answer: `${overview}\n\n_(A IA não está configurada agora, então mostrei o resumo direto da base. Configure OPENAI_API_KEY ou ANTHROPIC_API_KEY para respostas em linguagem natural.)_`,
+    answer: `${overview}\n\n_(Este é o resumo direto da sua base. Para respostas em linguagem natural, configure uma chave de IA — GROQ_API_KEY (gratuita), OPENAI_API_KEY ou ANTHROPIC_API_KEY.)_`,
     usedAI: false,
   };
 }
