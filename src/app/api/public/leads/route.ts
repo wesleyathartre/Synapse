@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { rateLimit } from '@/lib/rate-limit';
 import { getClientIp, getUserAgent, audit } from '@/lib/audit';
+import { corsHeaders } from '@/lib/cors';
 
 // Endpoint PÚBLICO (sem login) para a Landing Page criar leads no CRM.
 // Protegido por rate limit + honeypot. A origem é gravada como "SITE".
@@ -15,23 +16,12 @@ const INTERESTS = new Set([
   'CONSORCIO_PESADOS', 'CONSORCIO_SERVICOS',
 ]);
 
-function corsHeaders(): Record<string, string> {
-  // Restrinja a origem da LP em produção via env LANDING_ORIGIN.
-  const origin = process.env.LANDING_ORIGIN || '*';
-  return {
-    'Access-Control-Allow-Origin': origin,
-    'Access-Control-Allow-Methods': 'POST, OPTIONS',
-    'Access-Control-Allow-Headers': 'Content-Type',
-    'Access-Control-Max-Age': '86400',
-  };
-}
-
-export async function OPTIONS() {
-  return new NextResponse(null, { status: 204, headers: corsHeaders() });
+export async function OPTIONS(req: NextRequest) {
+  return new NextResponse(null, { status: 204, headers: corsHeaders(req) });
 }
 
 export async function POST(req: NextRequest) {
-  const headers = corsHeaders();
+  const headers = corsHeaders(req);
   const ip = getClientIp(req);
 
   const rl = rateLimit(`public-lead:${ip}`, 5, 60_000);

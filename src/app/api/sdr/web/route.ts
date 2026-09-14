@@ -13,6 +13,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { rateLimit } from '@/lib/rate-limit';
 import { getClientIp } from '@/lib/audit';
+import { corsHeaders } from '@/lib/cors';
 import {
   processUserMessage,
   calculateScore,
@@ -31,22 +32,12 @@ const WEB_CONTACT_STATE = 'CAPTURE_CONTACT_WEB';
 const WEB_CONTACT_PROMPT =
   'Quase lá! 📞 Para um especialista entrar em contato, me informe seu *telefone/WhatsApp com DDD* e, se puder, seu *e-mail*.';
 
-function corsHeaders(): Record<string, string> {
-  const origin = process.env.LANDING_ORIGIN || '*';
-  return {
-    'Access-Control-Allow-Origin': origin,
-    'Access-Control-Allow-Methods': 'POST, OPTIONS',
-    'Access-Control-Allow-Headers': 'Content-Type',
-    'Access-Control-Max-Age': '86400',
-  };
-}
-
-export async function OPTIONS() {
-  return new NextResponse(null, { status: 204, headers: corsHeaders() });
+export async function OPTIONS(req: NextRequest) {
+  return new NextResponse(null, { status: 204, headers: corsHeaders(req) });
 }
 
 export async function POST(req: NextRequest) {
-  const headers = corsHeaders();
+  const headers = corsHeaders(req);
   const ip = getClientIp(req);
 
   const rl = rateLimit(`sdr-web:${ip}`, 30, 60_000);
