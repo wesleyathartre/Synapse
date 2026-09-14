@@ -18,6 +18,8 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
       startDate: body.startDate ? new Date(body.startDate) : undefined,
       endDate: body.endDate ? new Date(body.endDate) : undefined,
       status: body.status,
+      paymentType: body.paymentType || undefined,
+      installments: body.installments ? Math.max(1, Number(body.installments)) : undefined,
       notes: body.notes ?? null,
     },
   });

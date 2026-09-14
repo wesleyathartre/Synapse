@@ -1,6 +1,6 @@
 import { PrismaClient } from '@prisma/client';
 import bcrypt from 'bcryptjs';
-import { PRODUCTS } from '../src/lib/constants';
+import { PRODUCTS, INSURERS } from '../src/lib/constants';
 
 const prisma = new PrismaClient();
 
@@ -31,6 +31,18 @@ async function main() {
         where: { code },
         update: { label: p.label, color: p.color, emoji: p.emoji, category: p.category },
         create: { code, label: p.label, color: p.color, emoji: p.emoji, category: p.category, sort: sort++ },
+      });
+    }
+  }
+
+  // ----- Catálogo de seguradoras (upsert: preserva ativações/edições do usuário) -----
+  {
+    let sort = 0;
+    for (const name of INSURERS) {
+      await prisma.insurer.upsert({
+        where: { name },
+        update: {},
+        create: { name, sort: sort++ },
       });
     }
   }

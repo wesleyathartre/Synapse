@@ -19,6 +19,8 @@ import {
   UserCog,
   Sparkles,
   Globe,
+  Wallet,
+  ShieldCheck,
 } from 'lucide-react';
 
 export const NAV = [
@@ -29,6 +31,7 @@ export const NAV = [
   { href: '/clientes',  label: 'Clientes',  icon: Users },
   { href: '/apolices',  label: 'Apólices',  icon: FileText },
   { href: '/boletos',   label: 'Boletos',   icon: Receipt },
+  { href: '/financeiro', label: 'Financeiro', icon: Wallet },
   { href: '/tarefas',   label: 'Tarefas',   icon: CheckSquare },
 ];
 
@@ -37,6 +40,7 @@ export const ADMIN_NAV = [
   { href: '/minha-pagina', label: 'Minha Página', icon: Globe },
   { href: '/usuarios',   label: 'Usuários',   icon: UserCog },
   { href: '/produtos',   label: 'Produtos',   icon: Package },
+  { href: '/seguradoras', label: 'Seguradoras', icon: ShieldCheck },
   { href: '/importacao', label: 'Importação', icon: Upload },
   { href: '/sdr',        label: 'SDR',        icon: Bot },
 ];

@@ -60,6 +60,9 @@ export async function POST(req: NextRequest) {
       endDate,
       status: computeStatus(endDate),
       ownerId: user.id,
+      dealId: body.dealId || null,
+      paymentType: body.paymentType || 'UNICO',
+      installments: Math.max(1, Number(body.installments) || 1),
       notes: body.notes || null,
     },
   });

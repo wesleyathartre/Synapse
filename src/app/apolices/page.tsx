@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { Plus, Search, FileText, Loader2, CalendarClock } from 'lucide-react';
 import { Card, Modal, Field, Input, Select, Button, Badge, Empty } from '@/components/ui';
 import { money, formatDate, daysUntil } from '@/lib/format';
-import { POLICY_STATUS, INSURERS } from '@/lib/constants';
+import { POLICY_STATUS } from '@/lib/constants';
 import { useProducts } from '@/contexts/ProductsContext';
 
 interface Policy {
@@ -34,12 +34,15 @@ const emptyForm = () => ({
   commission: '',
   startDate: '',
   endDate: '',
+  paymentType: 'UNICO',
+  installments: '1',
 });
 
 export default function ApolicesPage() {
   const { map: PRODUCTS, groups: PRODUCT_GROUPS } = useProducts();
   const [policies, setPolicies] = useState<Policy[]>([]);
   const [clients, setClients] = useState<ClientOpt[]>([]);
+  const [insurers, setInsurers] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
@@ -64,12 +67,21 @@ export default function ApolicesPage() {
     setClients(Array.isArray(data.data) ? data.data : []);
   };
 
+  const loadInsurers = async () => {
+    const res = await fetch('/api/insurers');
+    if (res.ok) {
+      const data = await res.json();
+      setInsurers((data.data || []).filter((i: any) => i.active).map((i: any) => i.name));
+    }
+  };
+
   useEffect(() => {
     load();
   }, [statusFilter]);
 
   useEffect(() => {
     loadClients();
+    loadInsurers();
   }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -210,7 +222,7 @@ export default function ApolicesPage() {
                 onChange={(e) => setForm({ ...form, insurer: e.target.value })}
               />
               <datalist id="insurers-list">
-                {INSURERS.map((name) => <option key={name} value={name} />)}
+                {insurers.map((name) => <option key={name} value={name} />)}
               </datalist>
             </Field>
             <Field label="Prêmio (R$)">
@@ -218,6 +230,25 @@ export default function ApolicesPage() {
             </Field>
             <Field label="Comissão (R$)">
               <Input type="number" step="0.01" value={form.commission} onChange={(e) => setForm({ ...form, commission: e.target.value })} />
+            </Field>
+            <Field label="Forma de pagamento">
+              <Select value={form.paymentType} onChange={(e) => setForm({ ...form, paymentType: e.target.value })}>
+                <option value="UNICO">À vista (único)</option>
+                <option value="MENSAL">Mensal</option>
+                <option value="TRIMESTRAL">Trimestral</option>
+                <option value="SEMESTRAL">Semestral</option>
+                <option value="ANUAL">Anual</option>
+              </Select>
+            </Field>
+            <Field label="Nº de parcelas">
+              <Input
+                type="number"
+                min="1"
+                max="12"
+                value={form.installments}
+                disabled={form.paymentType === 'UNICO'}
+                onChange={(e) => setForm({ ...form, installments: e.target.value })}
+              />
             </Field>
             <Field label="Início da vigência">
               <Input type="date" value={form.startDate} onChange={(e) => setForm({ ...form, startDate: e.target.value })} />

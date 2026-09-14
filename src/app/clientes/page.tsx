@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import Link from 'next/link';
 import { Plus, Search, Users, Phone, Mail, MapPin, FileText, Target, Loader2 } from 'lucide-react';
 import { Card, Modal, Field, Input, Textarea, Button, Badge, Empty } from '@/components/ui';
 
@@ -102,6 +103,7 @@ export default function ClientesPage() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {clients.map((c) => (
             <Card key={c.id} className="p-4 hover:shadow-md transition-shadow">
+              <Link href={`/clientes/${c.id}`} className="block">
               <div className="flex items-start justify-between">
                 <div className="flex items-center gap-3 min-w-0">
                   <div className="w-10 h-10 rounded-full bg-brand-100 text-brand-700 flex items-center justify-center font-bold text-sm shrink-0">
@@ -124,6 +126,7 @@ export default function ClientesPage() {
                 <Badge color="brand"><Target size={11} className="inline mr-1" />{c._count?.deals ?? 0} negócios</Badge>
                 <Badge color="emerald"><FileText size={11} className="inline mr-1" />{c._count?.policies ?? 0} apólices</Badge>
               </div>
+              </Link>
             </Card>
           ))}
         </div>

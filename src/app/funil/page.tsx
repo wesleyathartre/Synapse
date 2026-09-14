@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Plus, GripVertical, Phone, Loader2 } from 'lucide-react';
+import { Plus, GripVertical, Phone, Loader2, Trophy } from 'lucide-react';
 import { Modal, Field, Input, Select, Button, Badge } from '@/components/ui';
 import { money, moneyShort, formatDate, cx } from '@/lib/format';
 import { STAGES } from '@/lib/constants';
@@ -18,11 +18,19 @@ interface Deal {
   commission: number;
   probability: number;
   expectedCloseDate: string | null;
+  clientId: string | null;
   clientName: string;
   clientPhone: string | null;
 }
 
+interface ClientOpt {
+  id: string;
+  name: string;
+  phone: string;
+}
+
 const emptyForm = () => ({
+  clientId: '',
   clientName: '',
   clientPhone: '',
   product: 'AUTO',
@@ -34,15 +42,39 @@ const emptyForm = () => ({
   expectedCloseDate: '',
 });
 
+const todayStr = () => new Date().toISOString().slice(0, 10);
+const plusOneYearStr = () => {
+  const d = new Date();
+  d.setFullYear(d.getFullYear() + 1);
+  return d.toISOString().slice(0, 10);
+};
+const emptyWinForm = () => ({
+  clientId: '',
+  insurer: '',
+  number: '',
+  startDate: todayStr(),
+  endDate: plusOneYearStr(),
+  paymentType: 'UNICO',
+  installments: '1',
+  generateBoletos: true,
+  firstDueDate: todayStr(),
+});
+
 export default function FunilPage() {
   const { map: PRODUCTS, groups: PRODUCT_GROUPS } = useProducts();
   const [deals, setDeals] = useState<Deal[]>([]);
+  const [clients, setClients] = useState<ClientOpt[]>([]);
+  const [insurers, setInsurers] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState(emptyForm());
   const [saving, setSaving] = useState(false);
   const [dragId, setDragId] = useState<string | null>(null);
   const [overStage, setOverStage] = useState<string | null>(null);
+  // Fechamento de venda (gera apólice)
+  const [winDeal, setWinDeal] = useState<Deal | null>(null);
+  const [winForm, setWinForm] = useState(emptyWinForm());
+  const [winSaving, setWinSaving] = useState(false);
 
   const load = async () => {
     const res = await fetch('/api/deals?status=OPEN');
@@ -51,9 +83,26 @@ export default function FunilPage() {
     setLoading(false);
   };
 
+  const loadClients = async () => {
+    const res = await fetch('/api/clients');
+    const data = await res.json();
+    setClients(Array.isArray(data.data) ? data.data : []);
+  };
+
+  const loadInsurers = async () => {
+    const res = await fetch('/api/insurers');
+    if (res.ok) {
+      const data = await res.json();
+      setInsurers((data.data || []).filter((i: any) => i.active).map((i: any) => i.name));
+    }
+  };
+
   useEffect(() => {
     load();
+    loadClients();
+    loadInsurers();
   }, []);
+
 
   const byStage = (stage: string) => deals.filter((d) => d.stage === stage);
   const stageTotal = (stage: string) =>
@@ -68,6 +117,12 @@ export default function FunilPage() {
     const deal = deals.find((d) => d.id === id);
     if (!deal || deal.stage === stage) return;
 
+    // Ao mover para GANHO, abre o fechamento da venda (gera a apólice) em vez de só mudar a etapa
+    if (stage === 'GANHO') {
+      openWin(deal);
+      return;
+    }
+
     // otimista
     setDeals((prev) => prev.map((d) => (d.id === id ? { ...d, stage } : d)));
     await fetch(`/api/deals/${id}`, {
@@ -76,6 +131,40 @@ export default function FunilPage() {
       body: JSON.stringify({ stage }),
     });
     load();
+  };
+
+  const openWin = (deal: Deal) => {
+    setWinDeal(deal);
+    setWinForm({ ...emptyWinForm(), clientId: deal.clientId || '' });
+  };
+
+  const handleWin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!winDeal) return;
+    setWinSaving(true);
+    try {
+      const res = await fetch(`/api/deals/${winDeal.id}/win`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          ...winForm,
+          installments: Number(winForm.installments) || 1,
+        }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (res.ok) {
+        setWinDeal(null);
+        load();
+        alert(
+          `Venda fechada! Apólice ${data.policy?.number || ''} criada` +
+            (data.boletos ? ` com ${data.boletos} boleto(s).` : '.'),
+        );
+      } else {
+        alert(data.error || 'Erro ao fechar a venda');
+      }
+    } finally {
+      setWinSaving(false);
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -172,7 +261,17 @@ export default function FunilPage() {
                             >
                               {prod.emoji} {prod.label}
                             </span>
-                            <GripVertical size={14} className="text-slate-300 shrink-0" />
+                            <div className="flex items-center gap-1 shrink-0">
+                              <button
+                                type="button"
+                                title="Fechar venda (gerar apólice)"
+                                onClick={(e) => { e.stopPropagation(); openWin(deal); }}
+                                className="text-slate-300 hover:text-emerald-600 transition-colors"
+                              >
+                                <Trophy size={13} />
+                              </button>
+                              <GripVertical size={14} className="text-slate-300" />
+                            </div>
                           </div>
                           <p className="text-sm font-semibold text-slate-800 mt-2 leading-snug">{deal.clientName}</p>
                           {deal.clientPhone && (
@@ -210,7 +309,17 @@ export default function FunilPage() {
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <Field label="Cliente *">
-              <Input value={form.clientName} onChange={(e) => setForm({ ...form, clientName: e.target.value })} placeholder="Nome do cliente" required />
+              <Select
+                value={form.clientId}
+                onChange={(e) => {
+                  const c = clients.find((x) => x.id === e.target.value);
+                  setForm({ ...form, clientId: e.target.value, clientName: c?.name || '', clientPhone: c?.phone || '' });
+                }}
+                required
+              >
+                <option value="">Selecione o cliente...</option>
+                {clients.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+              </Select>
             </Field>
             <Field label="Telefone">
               <Input value={form.clientPhone} onChange={(e) => setForm({ ...form, clientPhone: e.target.value })} placeholder="(11) 90000-0000" />
@@ -244,12 +353,101 @@ export default function FunilPage() {
               <Input type="date" value={form.expectedCloseDate} onChange={(e) => setForm({ ...form, expectedCloseDate: e.target.value })} />
             </Field>
           </div>
+          {clients.length === 0 && (
+            <p className="text-xs text-amber-600 bg-amber-50 rounded-lg px-3 py-2">
+              Cadastre um cliente antes de criar uma oportunidade (ou converta um lead).
+            </p>
+          )}
           <div className="flex justify-end gap-2 pt-2">
             <Button type="button" variant="secondary" onClick={() => setShowForm(false)}>Cancelar</Button>
-            <Button type="submit" disabled={saving}>{saving ? 'Salvando...' : 'Criar oportunidade'}</Button>
+            <Button type="submit" disabled={saving || !form.clientId}>{saving ? 'Salvando...' : 'Criar oportunidade'}</Button>
           </div>
         </form>
+      </Modal>
+
+      {/* Modal fechar venda (gera apólice) */}
+      <Modal
+        open={!!winDeal}
+        onClose={() => setWinDeal(null)}
+        title="Fechar venda e gerar apólice"
+        icon={<Trophy size={18} className="text-emerald-600" />}
+      >
+        {winDeal && (
+          <form onSubmit={handleWin} className="space-y-4">
+            <div className="rounded-lg bg-slate-50 px-3 py-2 text-sm text-slate-600">
+              <span className="font-semibold text-slate-800">{winDeal.clientName}</span> ·{' '}
+              {PRODUCTS[winDeal.product]?.label || winDeal.product} · Prêmio {money(winDeal.premium)} · Comissão {money(winDeal.commission)}
+            </div>
+
+            {!winDeal.clientId && (
+              <Field label="Vincular cliente *">
+                <Select value={winForm.clientId} onChange={(e) => setWinForm({ ...winForm, clientId: e.target.value })} required>
+                  <option value="">Selecione o cliente...</option>
+                  {clients.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+                </Select>
+              </Field>
+            )}
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <Field label="Seguradora">
+                <Select value={winForm.insurer} onChange={(e) => setWinForm({ ...winForm, insurer: e.target.value })}>
+                  <option value="">Selecione...</option>
+                  {insurers.map((name) => <option key={name} value={name}>{name}</option>)}
+                </Select>
+              </Field>
+              <Field label="Nº da apólice (deixe vazio p/ gerar)">
+                <Input value={winForm.number} onChange={(e) => setWinForm({ ...winForm, number: e.target.value })} placeholder="Automático" />
+              </Field>
+              <Field label="Início da vigência">
+                <Input type="date" value={winForm.startDate} onChange={(e) => setWinForm({ ...winForm, startDate: e.target.value })} />
+              </Field>
+              <Field label="Renovação (fim)">
+                <Input type="date" value={winForm.endDate} onChange={(e) => setWinForm({ ...winForm, endDate: e.target.value })} />
+              </Field>
+              <Field label="Forma de pagamento">
+                <Select value={winForm.paymentType} onChange={(e) => setWinForm({ ...winForm, paymentType: e.target.value })}>
+                  <option value="UNICO">À vista (único)</option>
+                  <option value="MENSAL">Mensal</option>
+                  <option value="TRIMESTRAL">Trimestral</option>
+                  <option value="SEMESTRAL">Semestral</option>
+                  <option value="ANUAL">Anual</option>
+                </Select>
+              </Field>
+              <Field label="Nº de parcelas">
+                <Input
+                  type="number"
+                  min="1"
+                  max="12"
+                  value={winForm.installments}
+                  disabled={winForm.paymentType === 'UNICO'}
+                  onChange={(e) => setWinForm({ ...winForm, installments: e.target.value })}
+                />
+              </Field>
+            </div>
+
+            <label className="flex items-center gap-2 text-sm text-slate-700">
+              <input
+                type="checkbox"
+                checked={winForm.generateBoletos}
+                onChange={(e) => setWinForm({ ...winForm, generateBoletos: e.target.checked })}
+                className="w-4 h-4 rounded border-slate-300 text-brand-600"
+              />
+              Gerar boletos automaticamente
+            </label>
+            {winForm.generateBoletos && (
+              <Field label="1º vencimento">
+                <Input type="date" value={winForm.firstDueDate} onChange={(e) => setWinForm({ ...winForm, firstDueDate: e.target.value })} />
+              </Field>
+            )}
+
+            <div className="flex justify-end gap-2 pt-2">
+              <Button type="button" variant="secondary" onClick={() => setWinDeal(null)}>Cancelar</Button>
+              <Button type="submit" disabled={winSaving}>{winSaving ? 'Fechando...' : 'Fechar venda'}</Button>
+            </div>
+          </form>
+        )}
       </Modal>
     </div>
   );
 }
+

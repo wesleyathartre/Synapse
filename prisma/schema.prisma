@@ -349,3 +349,21 @@ model LandingConfig {
   updatedAt       DateTime @updatedAt
 }
 
+// ==================== SEGURADORAS (catálogo de fornecedores) ====================
+// Catálogo das seguradoras com quem o corretor trabalha (Porto, Suhai, Ademicon...).
+model Insurer {
+  id         String   @id @default(cuid())
+  name       String   @unique
+  color      String   @default("#2451eb")   // cor de identificação
+  website    String?                          // portal do corretor
+  phone      String?                          // central de atendimento
+  commission Float    @default(0)             // % de comissão padrão
+  notes      String?                          // observações livres
+  active     Boolean  @default(true)
+  custom     Boolean  @default(false)         // criada pelo usuário (pode excluir)
+  sort       Int      @default(0)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+}
+
+

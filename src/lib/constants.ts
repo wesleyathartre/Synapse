@@ -76,18 +76,62 @@ export const PRODUCT_GROUPS = PRODUCT_CATEGORIES.map((cat) => ({
 
 // Seguradoras sugeridas (campo é livre — o corretor pode digitar qualquer uma)
 export const INSURERS: string[] = [
+  // Multiline / Auto (as mais usadas)
   'Porto Seguro',
-  'Bradesco Seguros',
-  'SulAmérica',
-  'Allianz',
   'Azul Seguros',
   'Itaú Seguros',
+  'Bradesco Seguros',
+  'SulAmérica',
+  'Allianz Seguros',
   'Mapfre',
   'HDI Seguros',
   'Tokio Marine',
   'Liberty Seguros',
-  'Zurich',
+  'Yelum Seguradora',
+  'Zurich Seguros',
   'Sompo Seguros',
+  'Suhai Seguradora',
+  'Sura Seguros',
+  'Chubb Seguros',
+  'Essor Seguros',
+  'Sancor Seguros',
+  'Too Seguros',
+  'Pier Seguradora',
+  'Youse Seguros',
+  'Kovr Seguradora',
+  'Darwin Seguros',
+  // Garantia / Fiança / Riscos
+  'Pottencial Seguradora',
+  'Junto Seguros',
+  'Berkley Brasil',
+  'Fairfax Brasil',
+  'Excelsior Seguros',
+  // Vida / Previdência
+  'Icatu Seguros',
+  'MetLife',
+  'Prudential do Brasil',
+  'MAG Seguros',
+  'Mongeral Aegon',
+  'Capemisa Seguradora',
+  'Sabemi Seguradora',
+  'BMG Seguros',
+  'Pan Seguros',
+  'Assurant',
+  'Cardif',
+  // Bancos / Grandes grupos
+  'Caixa Seguradora',
+  'Brasilseg (BB Seguros)',
+  // Saúde
+  'Amil',
+  'Notre Dame Intermédica',
+  'Hapvida',
+  'Unimed',
+  'Omint',
+  'Bradesco Saúde',
+  'SulAmérica Saúde',
+  // Consórcio
+  'Ademicon',
+  'Porto Consórcio',
 ];
 
 // Etapas do funil (kanban) — ordem importa

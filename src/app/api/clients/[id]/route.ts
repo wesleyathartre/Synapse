@@ -7,7 +7,11 @@ export async function GET(_req: NextRequest, { params }: { params: { id: string 
   if (!user) return NextResponse.json({ error: 'Não autenticado' }, { status: 401 });
   const client = await prisma.client.findUnique({
     where: { id: params.id },
-    include: { deals: true, policies: true },
+    include: {
+      deals: { orderBy: { createdAt: 'desc' } },
+      policies: { orderBy: { endDate: 'asc' } },
+      boletos: { orderBy: { dueDate: 'asc' } },
+    },
   });
   if (!client) return NextResponse.json({ error: 'Cliente não encontrado' }, { status: 404 });
   return NextResponse.json(client);
