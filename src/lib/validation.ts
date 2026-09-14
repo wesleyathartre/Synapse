@@ -28,6 +28,22 @@ export const changePasswordSchema = z.object({
   newPassword: password,
 });
 
+// Criação de usuário pelo painel do administrador
+export const adminCreateUserSchema = z.object({
+  name: z.string().trim().min(2, 'Informe o nome').max(120),
+  email: z.string().trim().toLowerCase().email('E-mail inválido'),
+  phone: z.string().trim().max(20).optional().or(z.literal('')),
+  role: z.enum(['ADMIN', 'CORRETOR']).default('CORRETOR'),
+  password,
+});
+
+// Atualização de usuário pelo administrador (ativar/desativar, trocar papel, resetar senha)
+export const adminUpdateUserSchema = z.object({
+  active: z.boolean().optional(),
+  role: z.enum(['ADMIN', 'CORRETOR']).optional(),
+  password: password.optional(),
+});
+
 export type RegisterInput = z.infer<typeof registerSchema>;
 export type LoginInput = z.infer<typeof loginSchema>;
 

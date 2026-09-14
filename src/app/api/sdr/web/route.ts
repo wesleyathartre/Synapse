@@ -14,6 +14,7 @@ import { prisma } from '@/lib/prisma';
 import { rateLimit } from '@/lib/rate-limit';
 import { getClientIp } from '@/lib/audit';
 import { corsHeaders } from '@/lib/cors';
+import { notifyLeadHandoff } from '@/lib/email';
 import {
   processUserMessage,
   calculateScore,
@@ -222,6 +223,18 @@ export async function POST(req: NextRequest) {
         ownerId: owner.id,
         leadId: lead.id,
       },
+    });
+
+    // Avisa o corretor por e-mail (best-effort; no-op sem RESEND_API_KEY).
+    await notifyLeadHandoff({
+      to: owner.notifyEmail || owner.email,
+      leadName: updatedCtx.name || lead.name,
+      classification: updatedCtx.classification || 'FRIO',
+      score: updatedCtx.score,
+      phone: handoffPhone,
+      email: updatedCtx.email || undefined,
+      summary: generateHandoffSummary(updatedCtx, handoffPhone),
+      channel: 'Chat do site (Web)',
     });
   }
 

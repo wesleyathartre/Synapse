@@ -17,6 +17,7 @@ import {
   Receipt,
   Upload,
   Bot,
+  UserCog,
 } from 'lucide-react';
 
 export const NAV = [
@@ -31,6 +32,7 @@ export const NAV = [
 
 // Itens visíveis apenas para administradores
 export const ADMIN_NAV = [
+  { href: '/usuarios',   label: 'Usuários',   icon: UserCog },
   { href: '/produtos',   label: 'Produtos',   icon: Package },
   { href: '/importacao', label: 'Importação', icon: Upload },
   { href: '/sdr',        label: 'SDR',        icon: Bot },
