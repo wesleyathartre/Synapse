@@ -17,6 +17,19 @@ export async function GET() {
 
   if (process.env.GROQ_API_KEY) {
     try {
+      const list = await fetch('https://api.groq.com/openai/v1/models', {
+        headers: { Authorization: `Bearer ${process.env.GROQ_API_KEY}` },
+      });
+      const listJson = await list.json().catch(() => null);
+      const models = Array.isArray(listJson?.data)
+        ? listJson.data.map((m: { id: string }) => m.id).sort()
+        : listJson;
+      checks.groqModels = { status: list.status, models };
+    } catch (e) {
+      checks.groqModels = { error: String(e).slice(0, 200) };
+    }
+
+    try {
       const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
         method: 'POST',
         headers: { Authorization: `Bearer ${process.env.GROQ_API_KEY}`, 'Content-Type': 'application/json' },
