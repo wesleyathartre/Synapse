@@ -19,6 +19,7 @@ import {
   Bot,
   UserCog,
   Sparkles,
+  Globe,
 } from 'lucide-react';
 
 export const NAV = [
@@ -34,6 +35,7 @@ export const NAV = [
 
 // Itens visíveis apenas para administradores
 export const ADMIN_NAV = [
+  { href: '/minha-pagina', label: 'Minha Página', icon: Globe },
   { href: '/usuarios',   label: 'Usuários',   icon: UserCog },
   { href: '/produtos',   label: 'Produtos',   icon: Package },
   { href: '/importacao', label: 'Importação', icon: Upload },

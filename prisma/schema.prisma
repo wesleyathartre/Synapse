@@ -337,3 +337,15 @@ model SdrConfig {
   @@index([ownerId])
 }
 
+// ==================== LANDING PAGE — CONFIGURAÇÃO EDITÁVEL ====================
+// Conteúdo da Landing Page controlado pelo cliente no CRM (sem mexer em código).
+// Singleton: sempre id = "default" (multi-tenant fica para uma fase futura).
+model LandingConfig {
+  id              String   @id @default("default")
+  campaignEnabled Boolean  @default(false)          // liga/desliga a faixa de campanha
+  campaignText    String   @default("")             // texto da campanha
+  campaignLink    String   @default("#simulador")   // para onde a campanha leva
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
