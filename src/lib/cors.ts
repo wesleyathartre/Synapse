@@ -4,6 +4,7 @@ import { NextRequest } from 'next/server';
 // Em produção, defina LANDING_ORIGIN na Vercel (lista separada por vírgula) para
 // travar exatamente no domínio da Landing.
 const DEFAULT_ORIGINS = [
+  'https://synapse-landing.vercel.app',
   'https://lp-puppo.vercel.app',
   'http://localhost:5500',
   'http://localhost:3000',
