@@ -4,8 +4,8 @@
  * Detecta automaticamente qual chave está configurada no ambiente:
  *   ANTHROPIC_API_KEY  → usa Claude (modelo em ANTHROPIC_MODEL, default haiku)
  *   OPENAI_API_KEY     → usa GPT   (modelo em OPENAI_MODEL, default gpt-4o-mini)
- *   GROQ_API_KEY       → usa Llama via Groq (GRATUITO, compatível com OpenAI;
- *                        modelo em GROQ_MODEL, default llama-3.3-70b-versatile)
+ *   GROQ_API_KEY       → usa Groq (GRATUITO, compatível com OpenAI;
+ *                        modelo em GROQ_MODEL, default openai/gpt-oss-20b)
  * Se NENHUMA chave existir, retorna null → o chamador cai no modo determinístico.
  */
 
@@ -111,7 +111,7 @@ export async function chat(system: string, user: string): Promise<LlmResult | nu
       'groq',
       'https://api.groq.com/openai/v1/chat/completions',
       groqKey,
-      process.env.GROQ_MODEL || 'llama-3.3-70b-versatile',
+      process.env.GROQ_MODEL || 'openai/gpt-oss-20b',
       system,
       user,
     );
