@@ -12,7 +12,6 @@ import {
   FileText,
   CheckSquare,
   LogOut,
-  Shield,
   Package,
   Receipt,
   Upload,
@@ -50,9 +49,8 @@ export function Sidebar() {
   return (
     <aside className="hidden md:flex w-60 shrink-0 bg-slate-900 text-white flex-col h-full">
       <div className="px-5 py-5 flex items-center gap-2.5 border-b border-white/10">
-        <div className="w-9 h-9 rounded-lg bg-brand-600 flex items-center justify-center">
-          <Shield size={20} className="text-white" />
-        </div>
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src="/logo-mark.png" alt="Synapse CRM" className="w-9 h-9 rounded-lg" />
         <div className="leading-tight">
           <p className="font-bold text-sm">Synapse CRM</p>
           <p className="text-[11px] text-slate-400">Corretor de Seguros</p>
@@ -153,9 +151,8 @@ export function MobileHeader() {
   return (
     <header className="md:hidden sticky top-0 z-30 bg-slate-900 text-white px-4 py-3 flex items-center justify-between safe-top">
       <div className="flex items-center gap-2">
-        <div className="w-7 h-7 rounded-md bg-brand-600 flex items-center justify-center">
-          <Shield size={16} />
-        </div>
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src="/logo-mark.png" alt="Synapse CRM" className="w-7 h-7 rounded-md" />
         <span className="font-bold text-sm">Synapse CRM</span>
       </div>
       <Link href="/conta" title="Minha conta" className="w-8 h-8 rounded-full bg-brand-600 flex items-center justify-center text-xs font-bold">

@@ -4,7 +4,7 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
-import { Shield, Loader2, Eye, EyeOff } from 'lucide-react';
+import { Loader2, Eye, EyeOff } from 'lucide-react';
 
 type Tab = 'login' | 'signup';
 
@@ -96,10 +96,12 @@ export default function LoginPage() {
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-900 via-slate-900 to-brand-950 p-4">
       <div className="w-full max-w-md">
         <div className="text-center mb-6">
-          <div className="inline-flex w-16 h-16 rounded-2xl bg-brand-600 items-center justify-center mb-4 shadow-lg shadow-brand-500/30">
-            <Shield size={32} className="text-white" />
-          </div>
-          <h1 className="text-2xl font-bold text-white">Synapse CRM</h1>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src="/logo-full.png"
+            alt="Synapse CRM"
+            className="mx-auto mb-3 w-64 max-w-full rounded-2xl shadow-lg shadow-brand-500/20"
+          />
           <p className="text-slate-400 text-sm mt-1">Gestão comercial para corretores de seguros</p>
         </div>
 

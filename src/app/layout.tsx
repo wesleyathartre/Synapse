@@ -15,8 +15,8 @@ export const metadata: Metadata = {
     title: 'Synapse CRM',
   },
   icons: {
-    icon: '/icons/icon.svg',
-    apple: '/icons/icon-192.svg',
+    icon: '/icons/icon.png',
+    apple: '/icons/icon-192.png',
   },
 };
 
