@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { jwtVerify } from 'jose';
+import { jwtVerify, type JWTPayload } from 'jose';
+import { canAccessKey, firstAllowedHref, isAdminOnlyPath, moduleKeyForPath } from '@/lib/permissions';
 
 const AUTH_COOKIE = 'crm_token';
 const secret = new TextEncoder().encode(
@@ -9,20 +10,21 @@ const secret = new TextEncoder().encode(
 // Rotas que não exigem login
 const PUBLIC_PATHS = ['/login', '/privacidade'];
 
-async function isValid(token?: string): Promise<boolean> {
-  if (!token) return false;
+async function getPayload(token?: string): Promise<JWTPayload | null> {
+  if (!token) return null;
   try {
-    await jwtVerify(token, secret);
-    return true;
+    const { payload } = await jwtVerify(token, secret);
+    return payload;
   } catch {
-    return false;
+    return null;
   }
 }
 
 export async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
   const token = req.cookies.get(AUTH_COOKIE)?.value;
-  const authed = await isValid(token);
+  const payload = await getPayload(token);
+  const authed = payload !== null;
 
   const isPublic = PUBLIC_PATHS.some((p) => pathname.startsWith(p));
 
@@ -54,6 +56,23 @@ export async function middleware(req: NextRequest) {
   // Rota protegida sem login → manda pro /login
   if (!isPublic && !authed) {
     return NextResponse.redirect(new URL('/login', req.url));
+  }
+
+  // Controle de acesso por tela (páginas). Admin acessa tudo.
+  if (authed && !isPublic) {
+    const role = (payload?.role as string) || 'CORRETOR';
+    const perms = (payload?.permissions as string[] | undefined) ?? [];
+
+    // Telas exclusivas de administrador
+    if (isAdminOnlyPath(pathname) && role !== 'ADMIN') {
+      return NextResponse.redirect(new URL(firstAllowedHref(role, perms), req.url));
+    }
+
+    // Telas controladas por permissão
+    const moduleKey = moduleKeyForPath(pathname);
+    if (moduleKey && !canAccessKey(role, perms, moduleKey)) {
+      return NextResponse.redirect(new URL(firstAllowedHref(role, perms), req.url));
+    }
   }
 
   return NextResponse.next();

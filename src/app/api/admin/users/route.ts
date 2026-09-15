@@ -3,6 +3,7 @@ import bcrypt from 'bcryptjs';
 import { prisma } from '@/lib/prisma';
 import { requireAdmin } from '@/lib/auth-guard';
 import { adminCreateUserSchema, firstError } from '@/lib/validation';
+import { sanitizePermissions } from '@/lib/permissions';
 import { audit, getClientIp, getUserAgent } from '@/lib/audit';
 
 // GET /api/admin/users — lista usuários (somente ADMIN)
@@ -18,6 +19,7 @@ export async function GET() {
       phone: true,
       role: true,
       active: true,
+      permissions: true,
       lastLoginAt: true,
       createdAt: true,
     },
@@ -36,7 +38,7 @@ export async function POST(req: NextRequest) {
   if (!parsed.success) {
     return NextResponse.json({ error: firstError(parsed.error) }, { status: 400 });
   }
-  const { name, email, phone, role, password } = parsed.data;
+  const { name, email, phone, role, password, permissions } = parsed.data;
 
   const exists = await prisma.user.findUnique({ where: { email } });
   if (exists) {
@@ -52,8 +54,9 @@ export async function POST(req: NextRequest) {
       password: passwordHash,
       role,
       active: true,
+      permissions: role === 'CORRETOR' ? sanitizePermissions(permissions) : [],
     },
-    select: { id: true, name: true, email: true, phone: true, role: true, active: true, createdAt: true },
+    select: { id: true, name: true, email: true, phone: true, role: true, active: true, permissions: true, createdAt: true },
   });
 
   await audit({

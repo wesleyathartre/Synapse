@@ -36,7 +36,13 @@ export async function POST(req: NextRequest) {
   await prisma.user.update({ where: { id: user.id }, data: { lastLoginAt: new Date() } });
   await audit({ action: 'LOGIN_SUCCESS', userId: user.id, email, ip, userAgent });
 
-  const session = { id: user.id, name: user.name, email: user.email, role: user.role };
+  const session = {
+    id: user.id,
+    name: user.name,
+    email: user.email,
+    role: user.role,
+    permissions: user.permissions ?? [],
+  };
   const token = await signToken(session);
   setSessionCookie(token);
 

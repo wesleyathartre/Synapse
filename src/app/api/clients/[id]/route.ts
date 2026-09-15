@@ -9,8 +9,12 @@ export async function GET(_req: NextRequest, { params }: { params: { id: string 
     where: { id: params.id },
     include: {
       deals: { orderBy: { createdAt: 'desc' } },
-      policies: { orderBy: { endDate: 'asc' } },
+      policies: {
+        orderBy: { endDate: 'asc' },
+        include: { _count: { select: { attachments: true } } },
+      },
       boletos: { orderBy: { dueDate: 'asc' } },
+      claims: { orderBy: { createdAt: 'desc' } },
     },
   });
   if (!client) return NextResponse.json({ error: 'Cliente não encontrado' }, { status: 404 });

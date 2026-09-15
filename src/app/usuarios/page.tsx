@@ -4,7 +4,8 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import { Card, Badge, Button, Input, Select, Field, Modal, Empty } from '@/components/ui';
-import { Users, Plus, Loader2, ShieldCheck, KeyRound, Power } from 'lucide-react';
+import { Users, Plus, Loader2, ShieldCheck, KeyRound, Power, SlidersHorizontal } from 'lucide-react';
+import { OPTIONAL_MODULES } from '@/lib/permissions';
 
 interface UserRow {
   id: string;
@@ -13,6 +14,7 @@ interface UserRow {
   phone: string | null;
   role: string;
   active: boolean;
+  permissions: string[];
   lastLoginAt: string | null;
   createdAt: string;
 }
@@ -38,6 +40,11 @@ export default function UsuariosPage() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [busyId, setBusyId] = useState<string | null>(null);
+
+  // Permissões por corretor
+  const [permUser, setPermUser] = useState<UserRow | null>(null);
+  const [permSel, setPermSel] = useState<string[]>([]);
+  const [permSaving, setPermSaving] = useState(false);
 
   useEffect(() => {
     if (!authLoading && user && user.role !== 'ADMIN') router.replace('/');
@@ -112,6 +119,28 @@ export default function UsuariosPage() {
     if (pwd) patch(u.id, { password: pwd });
   };
 
+  // Se a lista estiver vazia (legado), começa com tudo marcado.
+  const openPermissions = (u: UserRow) => {
+    const all = OPTIONAL_MODULES.map((m) => m.key);
+    setPermSel(u.permissions && u.permissions.length > 0 ? u.permissions : all);
+    setPermUser(u);
+    setError('');
+  };
+
+  const togglePerm = (key: string) =>
+    setPermSel((prev) => (prev.includes(key) ? prev.filter((k) => k !== key) : [...prev, key]));
+
+  const savePermissions = async () => {
+    if (!permUser || permSel.length === 0) return;
+    setPermSaving(true);
+    try {
+      await patch(permUser.id, { permissions: permSel });
+      setPermUser(null);
+    } finally {
+      setPermSaving(false);
+    }
+  };
+
   const stats = useMemo(() => {
     const admins = users.filter((u) => u.role === 'ADMIN').length;
     const active = users.filter((u) => u.active).length;
@@ -164,6 +193,16 @@ export default function UsuariosPage() {
                 <Badge color={u.role === 'ADMIN' ? 'brand' : 'slate'}>{u.role === 'ADMIN' ? 'Admin' : 'Corretor'}</Badge>
                 <Badge color={u.active ? 'emerald' : 'red'}>{u.active ? 'Ativo' : 'Inativo'}</Badge>
                 <div className="flex items-center gap-1">
+                  {u.role !== 'ADMIN' && (
+                    <button
+                      title="Telas que este corretor pode acessar"
+                      disabled={busyId === u.id}
+                      onClick={() => openPermissions(u)}
+                      className="p-2 text-slate-400 hover:text-brand-600 disabled:opacity-40"
+                    >
+                      <SlidersHorizontal size={16} />
+                    </button>
+                  )}
                   <button
                     title="Alternar papel (Admin/Corretor)"
                     disabled={busyId === u.id}
@@ -225,6 +264,72 @@ export default function UsuariosPage() {
             </Button>
           </div>
         </form>
+      </Modal>
+
+      <Modal
+        open={!!permUser}
+        onClose={() => setPermUser(null)}
+        title={permUser ? `Telas de ${permUser.name}` : 'Telas'}
+        icon={<SlidersHorizontal size={18} />}
+      >
+        <div className="space-y-4">
+          <p className="text-sm text-slate-500">
+            Marque as telas que este corretor pode acessar. As telas de administração continuam
+            exclusivas do administrador.
+          </p>
+          <div className="grid grid-cols-2 gap-2">
+            {OPTIONAL_MODULES.map((m) => {
+              const checked = permSel.includes(m.key);
+              return (
+                <button
+                  key={m.key}
+                  type="button"
+                  onClick={() => togglePerm(m.key)}
+                  className={
+                    'flex items-center gap-2 px-3 py-2.5 rounded-lg border text-sm font-medium text-left transition-colors ' +
+                    (checked
+                      ? 'border-brand-600 bg-brand-50 text-brand-700'
+                      : 'border-slate-200 text-slate-500 hover:bg-slate-50')
+                  }
+                >
+                  <span
+                    className={
+                      'w-4 h-4 rounded flex items-center justify-center text-[10px] font-bold shrink-0 ' +
+                      (checked ? 'bg-brand-600 text-white' : 'bg-slate-200 text-transparent')
+                    }
+                  >
+                    ✓
+                  </span>
+                  {m.label}
+                </button>
+              );
+            })}
+          </div>
+          <div className="flex items-center justify-between gap-2 pt-1">
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={() => setPermSel(OPTIONAL_MODULES.map((m) => m.key))}
+                className="text-xs text-brand-600 hover:underline"
+              >
+                Marcar todas
+              </button>
+            </div>
+            <div className="flex gap-2">
+              <Button type="button" variant="secondary" onClick={() => setPermUser(null)}>
+                Cancelar
+              </Button>
+              <Button type="button" onClick={savePermissions} disabled={permSaving || permSel.length === 0}>
+                {permSaving ? <Loader2 size={16} className="animate-spin" /> : <SlidersHorizontal size={16} />} Salvar
+              </Button>
+            </div>
+          </div>
+          {permSel.length === 0 && (
+            <p className="text-xs text-amber-600">
+              Selecione ao menos uma tela. Para bloquear o acesso por completo, desative o usuário.
+            </p>
+          )}
+        </div>
       </Modal>
     </div>
   );

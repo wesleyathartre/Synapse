@@ -57,7 +57,7 @@ export async function POST(req: NextRequest) {
 
   await audit({ action: 'REGISTER', userId: user.id, email, ip, userAgent });
 
-  const session = { id: user.id, name: user.name, email: user.email, role: user.role };
+  const session = { id: user.id, name: user.name, email: user.email, role: user.role, permissions: [] };
   const token = await signToken(session);
   setSessionCookie(token);
 

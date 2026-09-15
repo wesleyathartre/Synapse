@@ -6,10 +6,11 @@ import Link from 'next/link';
 import {
   ArrowLeft, Phone, Mail, MapPin, User, Target, FileText,
   Receipt, Loader2, CalendarClock, CheckSquare, Clock, CheckCircle2,
+  ShieldAlert, Paperclip,
 } from 'lucide-react';
 import { Card, Badge, Empty } from '@/components/ui';
 import { money, formatDate } from '@/lib/format';
-import { STAGE_MAP, POLICY_STATUS, ACTIVITY_TYPES } from '@/lib/constants';
+import { STAGE_MAP, POLICY_STATUS, ACTIVITY_TYPES, CLAIM_STATUS, CLAIM_TYPES } from '@/lib/constants';
 import { useProducts } from '@/contexts/ProductsContext';
 
 const BOLETO_STATUS: Record<string, { label: string; color: any }> = {
@@ -33,6 +34,7 @@ interface ClientDetail {
   policies: any[];
   boletos: any[];
   activities: any[];
+  claims: any[];
 }
 
 export default function ClienteDetailPage() {
@@ -185,6 +187,11 @@ export default function ClienteDetailPage() {
                   <div className="flex-1 min-w-0">
                     <p className="font-medium text-slate-800 truncate">
                       {prod?.emoji} {prod?.label || p.product} <span className="text-slate-400 font-mono text-xs">· {p.number}</span>
+                      {p._count?.attachments > 0 && (
+                        <span className="inline-flex items-center gap-0.5 text-slate-400 text-xs ml-1" title="PDF anexado">
+                          <Paperclip size={11} /> {p._count.attachments}
+                        </span>
+                      )}
                     </p>
                     <p className="text-xs text-slate-400 flex items-center gap-1">
                       {p.insurer || 'Sem seguradora'} · <CalendarClock size={11} /> renova {formatDate(p.endDate)} · comissão {money(p.commission)}
@@ -197,6 +204,37 @@ export default function ClienteDetailPage() {
           </Card>
         )}
       </section>
+
+      {/* Sinistros */}
+      {client.claims && client.claims.length > 0 && (
+        <section className="mb-6">
+          <h2 className="font-bold text-slate-800 flex items-center gap-2 mb-3">
+            <ShieldAlert size={16} className="text-brand-600" /> Sinistros
+          </h2>
+          <Card className="divide-y divide-slate-100">
+            {client.claims.map((c) => {
+              const st = CLAIM_STATUS[c.status] || CLAIM_STATUS.ABERTO;
+              const tp = CLAIM_TYPES[c.type] || CLAIM_TYPES.OUTRO;
+              return (
+                <div key={c.id} className="flex items-center gap-3 px-4 py-3">
+                  <div className="flex-1 min-w-0">
+                    <p className="font-medium text-slate-800 truncate">
+                      {tp.label}
+                      {c.number && <span className="text-slate-400 font-mono text-xs font-normal"> · {c.number}</span>}
+                    </p>
+                    <p className="text-xs text-slate-400 flex items-center gap-1">
+                      {c.policyNumber && <span>Apólice {c.policyNumber} · </span>}
+                      <CalendarClock size={11} /> {formatDate(c.incidentDate)}
+                      {c.amount > 0 && <span> · {money(c.amount)}</span>}
+                    </p>
+                  </div>
+                  <Badge color={st.color}>{st.label}</Badge>
+                </div>
+              );
+            })}
+          </Card>
+        </section>
+      )}
 
       {/* Boletos */}
       <section>

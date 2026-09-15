@@ -22,6 +22,9 @@ model User {
   avatarUrl String?
   active    Boolean  @default(true)
 
+  // Permissões de acesso por tela (só para CORRETOR). Vazio = todas as telas liberadas.
+  permissions String[] @default([])
+
   // LGPD — registro de consentimento
   acceptedTermsAt  DateTime? // aceite dos Termos + Política de Privacidade
   termsVersion     String?   // versão do documento aceito
@@ -45,6 +48,8 @@ model User {
   auditLogs        AuditLog[]
   boletos          Boleto[]
   sdrConversations SdrConversation[]
+  claims           Claim[]
+  policyAttachments PolicyAttachment[]
 }
 
 // ==================== LGPD — TRILHA DE CONSENTIMENTO ====================
@@ -146,6 +151,7 @@ model Client {
   deals    Deal[]
   policies Policy[]
   boletos  Boleto[]
+  claims   Claim[]
 
   @@index([ownerId])
 }
@@ -204,14 +210,67 @@ model Policy {
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
-  client  Client   @relation(fields: [clientId], references: [id])
-  owner   User     @relation(fields: [ownerId], references: [id])
-  deal    Deal?    @relation(fields: [dealId], references: [id])
-  boletos Boleto[]
+  client      Client             @relation(fields: [clientId], references: [id])
+  owner       User               @relation(fields: [ownerId], references: [id])
+  deal        Deal?              @relation(fields: [dealId], references: [id])
+  boletos     Boleto[]
+  claims      Claim[]
+  attachments PolicyAttachment[]
 
   @@index([status])
   @@index([endDate])
   @@index([ownerId])
+}
+
+// ==================== ANEXOS DE APÓLICE (PDF) ====================
+// Guarda o arquivo (PDF) da apólice/endosso vinculado a uma apólice.
+model PolicyAttachment {
+  id        String   @id @default(cuid())
+  policyId  String
+  ownerId   String
+  filename  String
+  mimeType  String   @default("application/pdf")
+  size      Int      @default(0)
+  data      Bytes
+  createdAt DateTime @default(now())
+
+  policy Policy @relation(fields: [policyId], references: [id], onDelete: Cascade)
+  owner  User   @relation(fields: [ownerId], references: [id])
+
+  @@index([policyId])
+  @@index([ownerId])
+}
+
+// ==================== SINISTROS ====================
+// Acompanhamento de avarias/acionamentos do cliente junto à seguradora.
+model Claim {
+  id           String    @id @default(cuid())
+  number       String?   // número do sinistro na seguradora
+  clientId     String
+  clientName   String    // desnormalizado para listagens
+  policyId     String?
+  policyNumber String?
+  insurer      String?
+  product      String    @default("AUTO")
+  type         String    @default("OUTRO")  // COLISAO | ROUBO | FURTO | INCENDIO | DANOS | TERCEIROS | ALAGAMENTO | SAUDE | OUTRO
+  status       String    @default("ABERTO") // ABERTO | EM_ANALISE | APROVADO | NEGADO | PAGO | ENCERRADO
+  description  String?
+  incidentDate DateTime  @default(now())     // data do ocorrido
+  reportedDate DateTime  @default(now())     // data da comunicação
+  amount       Float     @default(0)         // valor estimado / indenização
+  notes        String?
+  ownerId      String
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  client Client  @relation(fields: [clientId], references: [id])
+  policy Policy? @relation(fields: [policyId], references: [id])
+  owner  User    @relation(fields: [ownerId], references: [id])
+
+  @@index([status])
+  @@index([ownerId])
+  @@index([clientId])
+  @@index([policyId])
 }
 
 // ==================== ATIVIDADES / TAREFAS / AGENDA ====================

@@ -3,6 +3,7 @@ import bcrypt from 'bcryptjs';
 import { prisma } from '@/lib/prisma';
 import { requireAdmin } from '@/lib/auth-guard';
 import { adminUpdateUserSchema, firstError } from '@/lib/validation';
+import { sanitizePermissions } from '@/lib/permissions';
 import { audit, getClientIp, getUserAgent } from '@/lib/audit';
 
 // PATCH /api/admin/users/[id] — ativa/desativa, troca papel ou reseta senha (somente ADMIN)
@@ -15,6 +16,7 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
     return NextResponse.json({ error: firstError(parsed.error) }, { status: 400 });
   }
   const { active, role, password } = parsed.data;
+  const permissions = parsed.data.permissions;
 
   const target = await prisma.user.findUnique({ where: { id: params.id } });
   if (!target) return NextResponse.json({ error: 'Usuário não encontrado' }, { status: 404 });
@@ -34,10 +36,14 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
     }
   }
 
-  const data: { active?: boolean; role?: string; password?: string } = {};
+  const data: { active?: boolean; role?: string; password?: string; permissions?: string[] } = {};
   if (typeof active === 'boolean') data.active = active;
   if (role) data.role = role;
   if (password) data.password = await bcrypt.hash(password, 12);
+  if (Array.isArray(permissions)) data.permissions = sanitizePermissions(permissions);
+  // Papel efetivo após a atualização (admin ignora permissões).
+  const effectiveRole = role || target.role;
+  if (effectiveRole === 'ADMIN') data.permissions = [];
 
   if (Object.keys(data).length === 0) {
     return NextResponse.json({ error: 'Nada para atualizar.' }, { status: 400 });
@@ -46,7 +52,7 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
   const user = await prisma.user.update({
     where: { id: params.id },
     data,
-    select: { id: true, name: true, email: true, phone: true, role: true, active: true, createdAt: true },
+    select: { id: true, name: true, email: true, phone: true, role: true, active: true, permissions: true, createdAt: true },
   });
 
   await audit({

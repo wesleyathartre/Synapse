@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import { initials, cx } from '@/lib/format';
+import { canAccessKey, moduleKeyForPath } from '@/lib/permissions';
 import {
   LayoutDashboard,
   KanbanSquare,
@@ -21,6 +22,7 @@ import {
   Globe,
   Wallet,
   ShieldCheck,
+  ShieldAlert,
 } from 'lucide-react';
 
 export const NAV = [
@@ -30,6 +32,7 @@ export const NAV = [
   { href: '/leads',     label: 'Leads',     icon: UserPlus },
   { href: '/clientes',  label: 'Clientes',  icon: Users },
   { href: '/apolices',  label: 'Apólices',  icon: FileText },
+  { href: '/sinistros', label: 'Sinistros', icon: ShieldAlert },
   { href: '/boletos',   label: 'Boletos',   icon: Receipt },
   { href: '/financeiro', label: 'Financeiro', icon: Wallet },
   { href: '/tarefas',   label: 'Tarefas',   icon: CheckSquare },
@@ -50,6 +53,10 @@ export function Sidebar() {
   const pathname = usePathname();
   const { user, logout } = useAuth();
 
+  const visibleNav = NAV.filter((item) =>
+    canAccessKey(user?.role || '', user?.permissions, moduleKeyForPath(item.href) || ''),
+  );
+
   return (
     <aside className="hidden md:flex w-60 shrink-0 bg-slate-900 text-white flex-col h-full">
       <div className="px-5 py-5 flex items-center gap-2.5 border-b border-white/10">
@@ -62,7 +69,7 @@ export function Sidebar() {
       </div>
 
       <nav className="flex-1 overflow-y-auto py-4 px-3 space-y-1">
-        {NAV.map((item) => {
+        {visibleNav.map((item) => {
           const active = pathname === item.href;
           return (
             <Link
@@ -126,7 +133,10 @@ export function Sidebar() {
 export function MobileNav() {
   const pathname = usePathname();
   const { user } = useAuth();
-  const items = user?.role === 'ADMIN' ? [...NAV, ...ADMIN_NAV] : NAV;
+  const visibleNav = NAV.filter((item) =>
+    canAccessKey(user?.role || '', user?.permissions, moduleKeyForPath(item.href) || ''),
+  );
+  const items = user?.role === 'ADMIN' ? [...visibleNav, ...ADMIN_NAV] : visibleNav;
   return (
     <nav className="md:hidden fixed bottom-0 inset-x-0 z-40 bg-white border-t border-slate-200 flex justify-around safe-bottom">
       {items.map((item) => {

@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Plus, Search, FileText, Loader2, CalendarClock } from 'lucide-react';
+import { Plus, Search, FileText, Loader2, CalendarClock, Paperclip, Upload, Download, Trash2 } from 'lucide-react';
 import { Card, Modal, Field, Input, Select, Button, Badge, Empty } from '@/components/ui';
 import { money, formatDate, daysUntil } from '@/lib/format';
 import { POLICY_STATUS } from '@/lib/constants';
@@ -18,6 +18,14 @@ interface Policy {
   startDate: string;
   endDate: string;
   status: string;
+}
+
+interface Attachment {
+  id: string;
+  filename: string;
+  mimeType: string;
+  size: number;
+  createdAt: string;
 }
 
 interface ClientOpt {
@@ -49,6 +57,13 @@ export default function ApolicesPage() {
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState(emptyForm());
   const [saving, setSaving] = useState(false);
+
+  // Anexos (PDF) da apólice
+  const [attachPolicy, setAttachPolicy] = useState<Policy | null>(null);
+  const [attachments, setAttachments] = useState<Attachment[]>([]);
+  const [attachLoading, setAttachLoading] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [attachError, setAttachError] = useState('');
 
   // Mapa seguradora → comissão padrão (para cálculo automático)
   const [insurerCommissionMap, setInsurerCommissionMap] = useState<Record<string, number>>({});
@@ -116,6 +131,54 @@ export default function ApolicesPage() {
 
   const totalCommission = policies.reduce((a, p) => a + (p.commission || 0), 0);
 
+  const openAttachments = async (p: Policy) => {
+    setAttachPolicy(p);
+    setAttachError('');
+    setAttachments([]);
+    setAttachLoading(true);
+    try {
+      const res = await fetch(`/api/policies/${p.id}/attachments`);
+      const data = await res.json();
+      setAttachments(Array.isArray(data.data) ? data.data : []);
+    } finally {
+      setAttachLoading(false);
+    }
+  };
+
+  const uploadAttachment = async (file: File) => {
+    if (!attachPolicy) return;
+    setAttachError('');
+    if (file.type !== 'application/pdf') {
+      setAttachError('Somente arquivos PDF são aceitos.');
+      return;
+    }
+    if (file.size > 8 * 1024 * 1024) {
+      setAttachError('O arquivo deve ter até 8 MB.');
+      return;
+    }
+    setUploading(true);
+    try {
+      const fd = new FormData();
+      fd.append('file', file);
+      const res = await fetch(`/api/policies/${attachPolicy.id}/attachments`, { method: 'POST', body: fd });
+      if (res.ok) {
+        await openAttachments(attachPolicy);
+      } else {
+        const err = await res.json().catch(() => ({}));
+        setAttachError(err.error || 'Não foi possível enviar o arquivo.');
+      }
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const deleteAttachment = async (att: Attachment) => {
+    if (!attachPolicy) return;
+    if (!confirm(`Excluir "${att.filename}"?`)) return;
+    const res = await fetch(`/api/policies/${attachPolicy.id}/attachments/${att.id}`, { method: 'DELETE' });
+    if (res.ok) setAttachments((prev) => prev.filter((a) => a.id !== att.id));
+  };
+
   return (
     <div className="p-5 md:p-8 max-w-6xl mx-auto">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-5">
@@ -166,6 +229,7 @@ export default function ApolicesPage() {
                   <th className="px-4 py-3 font-semibold hidden lg:table-cell">Comissão</th>
                   <th className="px-4 py-3 font-semibold">Renovação</th>
                   <th className="px-4 py-3 font-semibold">Status</th>
+                  <th className="px-4 py-3 font-semibold text-right">Anexo</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
@@ -192,6 +256,15 @@ export default function ApolicesPage() {
                         </span>
                       </td>
                       <td className="px-4 py-3"><Badge color={st.color}>{st.label}</Badge></td>
+                      <td className="px-4 py-3 text-right">
+                        <button
+                          title="Anexar/ver PDF da apólice"
+                          onClick={() => openAttachments(p)}
+                          className="p-2 text-slate-400 hover:text-brand-600"
+                        >
+                          <Paperclip size={16} />
+                        </button>
+                      </td>
                     </tr>
                   );
                 })}
@@ -303,6 +376,77 @@ export default function ApolicesPage() {
             <Button type="submit" disabled={saving || clients.length === 0}>{saving ? 'Salvando...' : 'Salvar apólice'}</Button>
           </div>
         </form>
+      </Modal>
+
+      <Modal
+        open={!!attachPolicy}
+        onClose={() => setAttachPolicy(null)}
+        title={attachPolicy ? `Anexos — ${attachPolicy.number}` : 'Anexos'}
+        icon={<Paperclip size={18} className="text-brand-600" />}
+      >
+        <div className="space-y-4">
+          <p className="text-sm text-slate-500">
+            Anexe o PDF da apólice ou endossos (até 8 MB por arquivo).
+          </p>
+
+          <label className="flex flex-col items-center justify-center gap-2 border-2 border-dashed border-slate-200 rounded-xl py-6 cursor-pointer hover:border-brand-400 hover:bg-brand-50/40 transition-colors">
+            {uploading ? (
+              <Loader2 size={22} className="animate-spin text-brand-600" />
+            ) : (
+              <Upload size={22} className="text-slate-400" />
+            )}
+            <span className="text-sm text-slate-500">{uploading ? 'Enviando...' : 'Clique para escolher um PDF'}</span>
+            <input
+              type="file"
+              accept="application/pdf"
+              className="hidden"
+              disabled={uploading}
+              onChange={(e) => {
+                const f = e.target.files?.[0];
+                if (f) uploadAttachment(f);
+                e.target.value = '';
+              }}
+            />
+          </label>
+
+          {attachError && (
+            <div className="bg-red-50 border border-red-200 text-red-700 text-sm rounded-lg px-3 py-2">{attachError}</div>
+          )}
+
+          {attachLoading ? (
+            <div className="py-6 flex justify-center text-slate-400"><Loader2 className="animate-spin" /></div>
+          ) : attachments.length === 0 ? (
+            <p className="text-sm text-slate-400 text-center py-4">Nenhum arquivo anexado ainda.</p>
+          ) : (
+            <div className="divide-y divide-slate-100 border border-slate-100 rounded-xl overflow-hidden">
+              {attachments.map((att) => (
+                <div key={att.id} className="flex items-center gap-3 px-3 py-2.5">
+                  <FileText size={18} className="text-red-500 shrink-0" />
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-medium text-slate-800 truncate">{att.filename}</p>
+                    <p className="text-xs text-slate-400">{(att.size / 1024).toFixed(0)} KB · {formatDate(att.createdAt)}</p>
+                  </div>
+                  <a
+                    href={`/api/policies/${attachPolicy?.id}/attachments/${att.id}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    title="Abrir / baixar"
+                    className="p-2 text-slate-400 hover:text-brand-600"
+                  >
+                    <Download size={16} />
+                  </a>
+                  <button title="Excluir" onClick={() => deleteAttachment(att)} className="p-2 text-slate-400 hover:text-red-600">
+                    <Trash2 size={16} />
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+
+          <div className="flex justify-end pt-1">
+            <Button type="button" variant="secondary" onClick={() => setAttachPolicy(null)}>Fechar</Button>
+          </div>
+        </div>
       </Modal>
     </div>
   );

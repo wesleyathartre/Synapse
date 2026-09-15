@@ -187,3 +187,25 @@ export const ACTIVITY_TYPES: Record<string, { label: string; icon: string }> = {
   REUNIAO: { label: 'Reunião', icon: 'users' },
   TAREFA: { label: 'Tarefa', icon: 'check-square' },
 };
+
+// Sinistros — tipos e situações
+export const CLAIM_TYPES: Record<string, { label: string }> = {
+  COLISAO: { label: 'Colisão' },
+  ROUBO: { label: 'Roubo' },
+  FURTO: { label: 'Furto' },
+  INCENDIO: { label: 'Incêndio' },
+  DANOS: { label: 'Danos' },
+  TERCEIROS: { label: 'Danos a terceiros' },
+  ALAGAMENTO: { label: 'Alagamento' },
+  SAUDE: { label: 'Saúde' },
+  OUTRO: { label: 'Outro' },
+};
+
+export const CLAIM_STATUS: Record<string, { label: string; color: string }> = {
+  ABERTO: { label: 'Aberto', color: 'sky' },
+  EM_ANALISE: { label: 'Em análise', color: 'amber' },
+  APROVADO: { label: 'Aprovado', color: 'blue' },
+  NEGADO: { label: 'Negado', color: 'red' },
+  PAGO: { label: 'Pago', color: 'emerald' },
+  ENCERRADO: { label: 'Encerrado', color: 'slate' },
+};

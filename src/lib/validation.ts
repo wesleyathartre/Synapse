@@ -35,13 +35,15 @@ export const adminCreateUserSchema = z.object({
   phone: z.string().trim().max(20).optional().or(z.literal('')),
   role: z.enum(['ADMIN', 'CORRETOR']).default('CORRETOR'),
   password,
+  permissions: z.array(z.string()).optional(),
 });
 
-// Atualização de usuário pelo administrador (ativar/desativar, trocar papel, resetar senha)
+// Atualização de usuário pelo administrador (ativar/desativar, trocar papel, resetar senha, permissões)
 export const adminUpdateUserSchema = z.object({
   active: z.boolean().optional(),
   role: z.enum(['ADMIN', 'CORRETOR']).optional(),
   password: password.optional(),
+  permissions: z.array(z.string()).optional(),
 });
 
 export type RegisterInput = z.infer<typeof registerSchema>;

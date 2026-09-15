@@ -11,6 +11,7 @@ export interface SessionUser {
   name: string;
   email: string;
   role: string;
+  permissions: string[];
 }
 
 export async function signToken(user: SessionUser): Promise<string> {
@@ -29,6 +30,7 @@ export async function verifyToken(token: string): Promise<SessionUser | null> {
       name: payload.name as string,
       email: payload.email as string,
       role: payload.role as string,
+      permissions: (payload.permissions as string[] | undefined) ?? [],
     };
   } catch {
     return null;
