@@ -16,6 +16,7 @@ import {
   TrendingUp,
   ChevronDown,
   X,
+  Download,
 } from 'lucide-react';
 import {
   Card,
@@ -251,9 +252,21 @@ export default function BoletosPage() {
             Gerencie os boletos a vencer e envie avisos aos clientes
           </p>
         </div>
-        <Button id="btn-novo-boleto" onClick={() => setShowForm(true)}>
-          <Plus size={18} /> Novo boleto
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button
+            id="btn-exportar-boletos"
+            variant="secondary"
+            onClick={() => {
+              const url = '/api/export?type=boletos';
+              window.open(url, '_blank');
+            }}
+          >
+            <Download size={16} /> Exportar CSV
+          </Button>
+          <Button id="btn-novo-boleto" onClick={() => setShowForm(true)}>
+            <Plus size={18} /> Novo boleto
+          </Button>
+        </div>
       </div>
 
       {/* Cards de resumo */}

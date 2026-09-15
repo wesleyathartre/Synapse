@@ -26,10 +26,12 @@ export async function middleware(req: NextRequest) {
 
   const isPublic = PUBLIC_PATHS.some((p) => pathname.startsWith(p));
 
-  // API de auth, APIs públicas e Webhooks/chat externos (ex.: SDR) são sempre liberados
+  // API de auth, APIs públicas, crons e Webhooks/chat externos (ex.: SDR) são sempre liberados
+  // Crons são protegidos internamente via CRON_SECRET, não por JWT
   if (
     pathname.startsWith('/api/auth') ||
     pathname.startsWith('/api/public') ||
+    pathname.startsWith('/api/cron') ||
     pathname.startsWith('/api/sdr/webhook') ||
     pathname.startsWith('/api/sdr/web')
   ) {

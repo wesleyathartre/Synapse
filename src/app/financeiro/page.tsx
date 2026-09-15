@@ -11,8 +11,8 @@ import {
   Tooltip,
   Legend,
 } from 'recharts';
-import { Wallet, DollarSign, FileText, TrendingUp, CheckCircle2, Clock, AlertTriangle, Building2, Loader2 } from 'lucide-react';
-import { Card, StatCard, Empty } from '@/components/ui';
+import { Wallet, DollarSign, FileText, TrendingUp, CheckCircle2, Clock, AlertTriangle, Building2, Loader2, Download } from 'lucide-react';
+import { Card, StatCard, Empty, Button } from '@/components/ui';
 import { money, moneyShort } from '@/lib/format';
 
 interface FinanceData {
@@ -58,11 +58,20 @@ export default function FinanceiroPage() {
 
   return (
     <div className="p-5 md:p-8 max-w-7xl mx-auto pb-24 md:pb-8">
-      <div className="mb-6">
-        <h1 className="text-2xl md:text-3xl font-bold text-slate-800 flex items-center gap-2">
-          <Wallet className="text-brand-600" /> Financeiro
-        </h1>
-        <p className="text-slate-500 text-sm mt-1">Comissões, prêmios e situação dos boletos da sua carteira.</p>
+      <div className="mb-6 flex items-start justify-between gap-3">
+        <div>
+          <h1 className="text-2xl md:text-3xl font-bold text-slate-800 flex items-center gap-2">
+            <Wallet className="text-brand-600" /> Financeiro
+          </h1>
+          <p className="text-slate-500 text-sm mt-1">Comissões, prêmios e situação dos boletos da sua carteira.</p>
+        </div>
+        <Button
+          id="btn-exportar-financeiro"
+          variant="secondary"
+          onClick={() => window.open('/api/export?type=financeiro', '_blank')}
+        >
+          <Download size={16} /> Exportar CSV
+        </Button>
       </div>
 
       {/* KPIs principais */}

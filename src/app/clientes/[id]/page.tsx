@@ -3,17 +3,20 @@
 import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { ArrowLeft, Phone, Mail, MapPin, User, Target, FileText, Receipt, Loader2, CalendarClock } from 'lucide-react';
+import {
+  ArrowLeft, Phone, Mail, MapPin, User, Target, FileText,
+  Receipt, Loader2, CalendarClock, CheckSquare, Clock, CheckCircle2,
+} from 'lucide-react';
 import { Card, Badge, Empty } from '@/components/ui';
 import { money, formatDate } from '@/lib/format';
-import { STAGE_MAP, POLICY_STATUS } from '@/lib/constants';
+import { STAGE_MAP, POLICY_STATUS, ACTIVITY_TYPES } from '@/lib/constants';
 import { useProducts } from '@/contexts/ProductsContext';
 
 const BOLETO_STATUS: Record<string, { label: string; color: any }> = {
   PENDENTE: { label: 'Pendente', color: 'amber' },
-  PAGO: { label: 'Pago', color: 'emerald' },
-  VENCIDO: { label: 'Vencido', color: 'red' },
-  CANCELADO: { label: 'Cancelado', color: 'slate' },
+  PAGO:     { label: 'Pago',     color: 'emerald' },
+  VENCIDO:  { label: 'Vencido',  color: 'red' },
+  CANCELADO:{ label: 'Cancelado',color: 'slate' },
 };
 
 interface ClientDetail {
@@ -29,6 +32,7 @@ interface ClientDetail {
   deals: any[];
   policies: any[];
   boletos: any[];
+  activities: any[];
 }
 
 export default function ClienteDetailPage() {
@@ -91,7 +95,7 @@ export default function ClienteDetailPage() {
         </div>
         <div className="grid grid-cols-3 gap-3 mt-5 pt-4 border-t border-slate-100">
           <div>
-            <p className="text-xs text-slate-500">Apólices ativas</p>
+            <p className="text-xs text-slate-500">Apólices</p>
             <p className="text-lg font-bold text-slate-800">{client.policies.length}</p>
           </div>
           <div>
@@ -104,6 +108,41 @@ export default function ClienteDetailPage() {
           </div>
         </div>
       </Card>
+
+      {/* Histórico de atividades */}
+      {client.activities.length > 0 && (
+        <section className="mb-6">
+          <h2 className="font-bold text-slate-800 flex items-center gap-2 mb-3">
+            <CheckSquare size={16} className="text-brand-600" /> Histórico de atividades
+          </h2>
+          <Card className="divide-y divide-slate-100">
+            {client.activities.map((a) => {
+              const type = ACTIVITY_TYPES[a.type] || { label: a.type, icon: 'check-square' };
+              return (
+                <div key={a.id} className="flex items-center gap-3 px-4 py-3">
+                  <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 text-xs font-bold
+                    ${a.done ? 'bg-emerald-50 text-emerald-600' : new Date(a.dueDate) < new Date() ? 'bg-red-50 text-red-600' : 'bg-amber-50 text-amber-600'}`}>
+                    {a.done ? <CheckCircle2 size={15} /> : <Clock size={15} />}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className={`text-sm font-medium truncate ${a.done ? 'text-slate-400 line-through' : 'text-slate-800'}`}>
+                      {a.title}
+                    </p>
+                    <p className="text-xs text-slate-400 flex items-center gap-1">
+                      {type.label} · <CalendarClock size={11} /> {formatDate(a.dueDate)}
+                      {a.done && a.doneAt && ` · concluída em ${formatDate(a.doneAt)}`}
+                    </p>
+                  </div>
+                  {!a.done && new Date(a.dueDate) < new Date() && (
+                    <Badge color="red">Atrasada</Badge>
+                  )}
+                  {a.done && <Badge color="emerald">Concluída</Badge>}
+                </div>
+              );
+            })}
+          </Card>
+        </section>
+      )}
 
       {/* Vendas / oportunidades */}
       <section className="mb-6">

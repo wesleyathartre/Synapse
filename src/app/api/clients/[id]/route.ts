@@ -14,7 +14,16 @@ export async function GET(_req: NextRequest, { params }: { params: { id: string 
     },
   });
   if (!client) return NextResponse.json({ error: 'Cliente não encontrado' }, { status: 404 });
-  return NextResponse.json(client);
+
+  // Activity não tem @relation com Client no schema (só tem clientId como campo).
+  // Busca separada para manter o histórico de atividades na ficha 360°.
+  const activities = await prisma.activity.findMany({
+    where: { clientId: params.id, ownerId: user.id },
+    orderBy: { dueDate: 'desc' },
+    take: 20,
+  });
+
+  return NextResponse.json({ ...client, activities });
 }
 
 export async function PUT(req: NextRequest, { params }: { params: { id: string } }) {

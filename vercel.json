@@ -1,0 +1,16 @@
+{
+  "crons": [
+    {
+      "path": "/api/cron/policies",
+      "schedule": "0 6 * * *"
+    },
+    {
+      "path": "/api/cron/boletos",
+      "schedule": "0 6 * * *"
+    },
+    {
+      "path": "/api/cron/notify-boletos",
+      "schedule": "0 7 * * *"
+    }
+  ]
+}

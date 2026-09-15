@@ -50,6 +50,9 @@ export default function ApolicesPage() {
   const [form, setForm] = useState(emptyForm());
   const [saving, setSaving] = useState(false);
 
+  // Mapa seguradora → comissão padrão (para cálculo automático)
+  const [insurerCommissionMap, setInsurerCommissionMap] = useState<Record<string, number>>({});
+
   const load = async () => {
     setLoading(true);
     const params = new URLSearchParams();
@@ -71,7 +74,12 @@ export default function ApolicesPage() {
     const res = await fetch('/api/insurers');
     if (res.ok) {
       const data = await res.json();
-      setInsurers((data.data || []).filter((i: any) => i.active).map((i: any) => i.name));
+      const active = (data.data || []).filter((i: any) => i.active);
+      setInsurers(active.map((i: any) => i.name));
+      // Monta mapa nome → comissão padrão
+      const map: Record<string, number> = {};
+      active.forEach((i: any) => { map[i.name] = i.commission ?? 0; });
+      setInsurerCommissionMap(map);
     }
   };
 
@@ -219,14 +227,42 @@ export default function ApolicesPage() {
                 list="insurers-list"
                 placeholder="Digite ou selecione a seguradora"
                 value={form.insurer}
-                onChange={(e) => setForm({ ...form, insurer: e.target.value })}
+                onChange={(e) => {
+                  const name = e.target.value;
+                  const pct = insurerCommissionMap[name];
+                  // Se há comissão padrão e prêmio preenchido, calcula automaticamente
+                  if (pct && form.premium) {
+                    const calc = (parseFloat(form.premium) * pct) / 100;
+                    setForm({ ...form, insurer: name, commission: calc.toFixed(2) });
+                  } else {
+                    setForm({ ...form, insurer: name });
+                  }
+                }}
               />
               <datalist id="insurers-list">
                 {insurers.map((name) => <option key={name} value={name} />)}
               </datalist>
+              {form.insurer && insurerCommissionMap[form.insurer] ? (
+                <p className="text-[11px] text-slate-400 mt-1">
+                  Comissão padrão: <span className="font-semibold text-emerald-600">{insurerCommissionMap[form.insurer]}%</span> — calculada automaticamente ao preencher o prêmio.
+                </p>
+              ) : null}
             </Field>
             <Field label="Prêmio (R$)">
-              <Input type="number" step="0.01" value={form.premium} onChange={(e) => setForm({ ...form, premium: e.target.value })} />
+              <Input
+                type="number" step="0.01"
+                value={form.premium}
+                onChange={(e) => {
+                  const premium = e.target.value;
+                  const pct = insurerCommissionMap[form.insurer];
+                  if (pct && premium) {
+                    const calc = (parseFloat(premium) * pct) / 100;
+                    setForm({ ...form, premium, commission: calc.toFixed(2) });
+                  } else {
+                    setForm({ ...form, premium });
+                  }
+                }}
+              />
             </Field>
             <Field label="Comissão (R$)">
               <Input type="number" step="0.01" value={form.commission} onChange={(e) => setForm({ ...form, commission: e.target.value })} />
