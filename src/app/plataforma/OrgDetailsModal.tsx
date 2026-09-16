@@ -12,7 +12,7 @@ import {
   Badge,
   Empty,
 } from '@/components/ui';
-import { PLAN_CODES, PLANS } from '@/lib/plans';
+import { PLAN_CODES, PLANS, type PlanDef } from '@/lib/plans';
 import { formatDate } from '@/lib/format';
 import {
   Loader2,
@@ -89,10 +89,12 @@ const ROLE_META: Record<string, { label: string; color: string }> = {
 
 export function OrgDetailsModal({
   orgId,
+  planMap,
   onClose,
   onChanged,
 }: {
   orgId: string;
+  planMap?: Record<string, PlanDef>;
   onClose: () => void;
   onChanged: () => void;
 }) {
@@ -331,11 +333,14 @@ export function OrgDetailsModal({
               </Field>
               <Field label="Plano">
                 <Select value={plan} onChange={(e) => setPlan(e.target.value)}>
-                  {PLAN_CODES.map((code) => (
-                    <option key={code} value={code}>
-                      {PLANS[code].label} — R$ {PLANS[code].priceMonthly}/mês
-                    </option>
-                  ))}
+                  {PLAN_CODES.map((code) => {
+                    const info = planMap?.[code] || PLANS[code];
+                    return (
+                      <option key={code} value={code}>
+                        {info.label} — R$ {info.priceMonthly}/mês
+                      </option>
+                    );
+                  })}
                 </Select>
               </Field>
               <Field label="Situação">

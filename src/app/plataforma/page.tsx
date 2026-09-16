@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import { Card, Badge, Button, Input, Select, Field, Modal, Empty, StatCard } from '@/components/ui';
-import { PLANS, PLAN_CODES } from '@/lib/plans';
+import { PLANS, PLAN_CODES, type PlanDef } from '@/lib/plans';
 import { formatDate } from '@/lib/format';
 import { Building2, Plus, Loader2, PlayCircle, PauseCircle, Users, Sparkles, Search, Settings2 } from 'lucide-react';
 import { OrgDetailsModal } from './OrgDetailsModal';
@@ -60,10 +60,25 @@ export default function PlataformaPage() {
   const [detailId, setDetailId] = useState<string | null>(null);
   const [q, setQ] = useState('');
   const [fStatus, setFStatus] = useState('');
+  const [planMap, setPlanMap] = useState<Record<string, PlanDef>>(PLANS);
 
   useEffect(() => {
     if (!authLoading && user && user.role !== 'OWNER') router.replace('/');
   }, [authLoading, user, router]);
+
+  useEffect(() => {
+    if (authLoading || user?.role !== 'OWNER') return;
+    fetch('/api/platform/plans')
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => {
+        if (data?.plans) {
+          setPlanMap(
+            Object.fromEntries((data.plans as PlanDef[]).map((p) => [p.code, p])),
+          );
+        }
+      })
+      .catch(() => {});
+  }, [authLoading, user]);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -89,9 +104,9 @@ export default function PlataformaPage() {
     const suspended = orgs.filter((o) => o.status === 'SUSPENDED').length;
     const mrr = orgs
       .filter((o) => o.status === 'ACTIVE')
-      .reduce((sum, o) => sum + (PLANS[o.plan as keyof typeof PLANS]?.priceMonthly || 0), 0);
+      .reduce((sum, o) => sum + (planMap[o.plan]?.priceMonthly || 0), 0);
     return { total, active, trial, suspended, mrr };
-  }, [orgs]);
+  }, [orgs, planMap]);
 
   const visibleOrgs = useMemo(() => {
     const term = q.trim().toLowerCase();
@@ -261,7 +276,7 @@ export default function PlataformaPage() {
                         >
                           {PLAN_CODES.map((code) => (
                             <option key={code} value={code}>
-                              {PLANS[code].label} · R$ {PLANS[code].priceMonthly}
+                              {(planMap[code] || PLANS[code]).label} · R$ {(planMap[code] || PLANS[code]).priceMonthly}
                             </option>
                           ))}
                         </Select>
@@ -308,7 +323,7 @@ export default function PlataformaPage() {
               <Select value={form.plan} onChange={(e) => setForm({ ...form, plan: e.target.value })}>
                 {PLAN_CODES.map((code) => (
                   <option key={code} value={code}>
-                    {PLANS[code].label} · até {PLANS[code].seatLimit} · R$ {PLANS[code].priceMonthly}
+                    {(planMap[code] || PLANS[code]).label} · até {(planMap[code] || PLANS[code]).seatLimit} · R$ {(planMap[code] || PLANS[code]).priceMonthly}
                   </option>
                 ))}
               </Select>
@@ -353,7 +368,7 @@ export default function PlataformaPage() {
       </Modal>
 
       {detailId && (
-        <OrgDetailsModal orgId={detailId} onClose={() => setDetailId(null)} onChanged={load} />
+        <OrgDetailsModal orgId={detailId} planMap={planMap} onClose={() => setDetailId(null)} onChanged={load} />
       )}
     </div>
   );

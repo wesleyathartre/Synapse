@@ -30,6 +30,16 @@ model Organization {
   @@index([status])
 }
 
+// ==================== PLANOS COMERCIAIS ====================
+// Preço e limite de usuários editáveis pelo OWNER (sobrescreve os padrões do código).
+model Plan {
+  code         String   @id // ESSENCIAL | PROFISSIONAL | EMPRESARIAL
+  label        String
+  seatLimit    Int
+  priceMonthly Int // em reais
+  updatedAt    DateTime @updatedAt
+}
+
 // ==================== USUÁRIOS / CORRETORES ====================
 model User {
   id        String   @id @default(cuid())

@@ -3,7 +3,8 @@ import bcrypt from 'bcryptjs';
 import { prisma } from '@/lib/prisma';
 import { requireOwner } from '@/lib/auth-guard';
 import { seedOrgCatalog } from '@/lib/onboarding';
-import { isPlanCode, seatLimitForPlan, isOrgStatus } from '@/lib/plans';
+import { isPlanCode, isOrgStatus } from '@/lib/plans';
+import { getSeatLimit } from '@/lib/plans-service';
 import { PLATFORM_ORG_SLUG } from '@/lib/org-access';
 import { audit, getClientIp, getUserAgent } from '@/lib/audit';
 
@@ -63,7 +64,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Já existe uma conta com este e-mail.' }, { status: 409 });
   }
 
-  const seatLimit = seatLimitForPlan(plan);
+  const seatLimit = await getSeatLimit(plan);
   const trialEndsAt = status === 'TRIAL' ? new Date(Date.now() + 14 * 24 * 60 * 60 * 1000) : null;
 
   const org = await prisma.organization.create({

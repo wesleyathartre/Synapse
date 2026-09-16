@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { requireOwner } from '@/lib/auth-guard';
-import { isPlanCode, seatLimitForPlan, isOrgStatus } from '@/lib/plans';
+import { isPlanCode, isOrgStatus } from '@/lib/plans';
+import { getSeatLimit } from '@/lib/plans-service';
 import { audit, getClientIp, getUserAgent } from '@/lib/audit';
 
 // GET /api/platform/orgs/[id] — detalhe da corretora (somente OWNER)
@@ -63,7 +64,7 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
     if (!isPlanCode(plan)) return NextResponse.json({ error: 'Plano inválido.' }, { status: 400 });
     data.plan = plan;
     // Ao trocar de plano, ajusta o limite de assentos ao padrão do plano.
-    data.seatLimit = seatLimitForPlan(plan);
+    data.seatLimit = await getSeatLimit(plan);
   }
 
   // Ajuste manual de assentos (ex.: usuários extras cobrados à parte).
