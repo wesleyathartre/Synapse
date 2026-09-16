@@ -29,10 +29,12 @@ import {
   ChevronRight,
 } from 'lucide-react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { Card, StatCard, Badge } from '@/components/ui';
 import { money, moneyShort, formatDate, daysUntil, cx } from '@/lib/format';
 import { STAGE_MAP, POLICY_STATUS } from '@/lib/constants';
 import { useProducts } from '@/contexts/ProductsContext';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface DashboardData {
   kpis: {
@@ -62,9 +64,16 @@ interface Boleto {
 
 export default function DashboardPage() {
   const { map: PRODUCTS } = useProducts();
+  const { user } = useAuth();
+  const router = useRouter();
   const [data, setData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
   const [boletos, setBoletos] = useState<Boleto[]>([]);
+
+  // OWNER nao tem dashboard operacional: vai direto para o painel da plataforma.
+  useEffect(() => {
+    if (user?.role === 'OWNER') router.replace('/plataforma');
+  }, [user, router]);
 
   useEffect(() => {
     fetch('/api/dashboard')

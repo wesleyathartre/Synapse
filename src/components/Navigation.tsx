@@ -59,9 +59,13 @@ export function Sidebar() {
   const pathname = usePathname();
   const { user, logout } = useAuth();
 
-  const visibleNav = NAV.filter((item) =>
-    canAccessKey(user?.role || '', user?.permissions, moduleKeyForPath(item.href) || ''),
-  );
+  // OWNER da plataforma nao usa os menus operacionais do cliente.
+  const visibleNav =
+    user?.role === 'OWNER'
+      ? []
+      : NAV.filter((item) =>
+          canAccessKey(user?.role || '', user?.permissions, moduleKeyForPath(item.href) || ''),
+        );
 
   return (
     <aside className="hidden md:flex w-60 shrink-0 bg-slate-900 text-white flex-col h-full">
@@ -161,9 +165,12 @@ export function Sidebar() {
 export function MobileNav() {
   const pathname = usePathname();
   const { user } = useAuth();
-  const visibleNav = NAV.filter((item) =>
-    canAccessKey(user?.role || '', user?.permissions, moduleKeyForPath(item.href) || ''),
-  );
+  const visibleNav =
+    user?.role === 'OWNER'
+      ? []
+      : NAV.filter((item) =>
+          canAccessKey(user?.role || '', user?.permissions, moduleKeyForPath(item.href) || ''),
+        );
   const items = user?.role === 'ADMIN' ? [...visibleNav, ...ADMIN_NAV]
     : user?.role === 'OWNER' ? [...visibleNav, ...OWNER_NAV]
     : visibleNav;
