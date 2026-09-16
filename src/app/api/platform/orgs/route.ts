@@ -4,6 +4,7 @@ import { prisma } from '@/lib/prisma';
 import { requireOwner } from '@/lib/auth-guard';
 import { seedOrgCatalog } from '@/lib/onboarding';
 import { isPlanCode, seatLimitForPlan, isOrgStatus } from '@/lib/plans';
+import { PLATFORM_ORG_SLUG } from '@/lib/org-access';
 import { audit, getClientIp, getUserAgent } from '@/lib/audit';
 
 // GET /api/platform/orgs — lista todas as corretoras (somente OWNER)
@@ -12,6 +13,7 @@ export async function GET() {
   if (!guard.ok) return NextResponse.json({ error: guard.error }, { status: guard.status });
 
   const orgs = await prisma.organization.findMany({
+    where: { slug: { not: PLATFORM_ORG_SLUG } },
     orderBy: { createdAt: 'desc' },
     include: {
       _count: { select: { users: true } },

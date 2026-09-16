@@ -1,6 +1,9 @@
 // Controle de acesso da corretora (Fase 3 — cobrança/bloqueio).
 import { prisma } from '@/lib/prisma';
 
+// Organização interna da Synapse (dona da plataforma); não é uma corretora cliente.
+export const PLATFORM_ORG_SLUG = 'synapse-plataforma';
+
 export type BlockReason = 'SUSPENDED' | 'TRIAL_EXPIRED';
 
 export interface OrgAccess {

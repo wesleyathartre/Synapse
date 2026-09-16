@@ -14,8 +14,8 @@ export default function LoginPage() {
   const [tab, setTab] = useState<Tab>('login');
 
   // login
-  const [email, setEmail] = useState('admin@synapsecrm.com');
-  const [password, setPassword] = useState('123456');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
 
   // signup
   const [name, setName] = useState('');
@@ -151,9 +151,6 @@ export default function LoginPage() {
                 {loading && <Loader2 size={18} className="animate-spin" />}
                 {loading ? 'Entrando...' : 'Entrar'}
               </button>
-              <p className="text-center text-xs text-slate-400">
-                Demo: <span className="font-semibold text-slate-500">admin@synapsecrm.com</span> / 123456
-              </p>
             </form>
           ) : (
             <form onSubmit={doSignup} className="space-y-4">
