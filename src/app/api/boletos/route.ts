@@ -105,7 +105,7 @@ export async function GET(req: NextRequest) {
 
 // ── POST /api/boletos ─────────────────────────────────────────────────────────
 export async function POST(req: NextRequest) {
-  const { user } = await ownerScope();
+  const { user, where } = await ownerScope();
   if (!user) return NextResponse.json({ error: 'Não autenticado' }, { status: 401 });
 
   const body = await req.json().catch(() => ({}));
@@ -118,12 +118,12 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const client = await prisma.client.findUnique({ where: { id: body.clientId } });
+  const client = await prisma.client.findFirst({ where: { id: body.clientId, ...where } });
   if (!client) return NextResponse.json({ error: 'Cliente não encontrado' }, { status: 404 });
 
   // ── Modo AUTO: gera parcelas a partir de uma apólice ──
   if (body.fromPolicy && body.policyId) {
-    const policy = await prisma.policy.findUnique({ where: { id: body.policyId } });
+    const policy = await prisma.policy.findFirst({ where: { id: body.policyId, ...where } });
     if (!policy) return NextResponse.json({ error: 'Apólice não encontrada' }, { status: 404 });
 
     const dates = buildInstallmentDates(
@@ -139,6 +139,7 @@ export async function POST(req: NextRequest) {
             clientId: client.id,
             clientName: client.name,
             policyId: policy.id,
+            orgId: user.orgId,
             ownerId: user.id,
             description: `Parcela ${i + 1}/${dates.length} — ${body.description || policy.number}`,
             amount: Number(body.amount),
@@ -164,6 +165,7 @@ export async function POST(req: NextRequest) {
       clientName: client.name,
       policyId: body.policyId || null,
       dealId: body.dealId || null,
+      orgId: user.orgId,
       ownerId: user.id,
       description: body.description,
       amount: Number(body.amount),

@@ -9,7 +9,7 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
   if (user.role !== 'ADMIN') return NextResponse.json({ error: 'Sem permissão' }, { status: 403 });
 
   const existing = await prisma.insurer.findUnique({ where: { id: params.id } });
-  if (!existing) return NextResponse.json({ error: 'Seguradora não encontrada' }, { status: 404 });
+  if (!existing || existing.orgId !== user.orgId) return NextResponse.json({ error: 'Seguradora não encontrada' }, { status: 404 });
 
   const body = await req.json().catch(() => ({}));
   const data: Record<string, unknown> = {};
@@ -27,7 +27,7 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
 
   // Evita nome duplicado
   if (typeof data.name === 'string' && data.name !== existing.name) {
-    const dup = await prisma.insurer.findUnique({ where: { name: data.name } });
+    const dup = await prisma.insurer.findFirst({ where: { orgId: user.orgId, name: data.name } });
     if (dup) return NextResponse.json({ error: 'Já existe uma seguradora com esse nome' }, { status: 400 });
   }
 
@@ -42,7 +42,7 @@ export async function DELETE(_req: NextRequest, { params }: { params: { id: stri
   if (user.role !== 'ADMIN') return NextResponse.json({ error: 'Sem permissão' }, { status: 403 });
 
   const existing = await prisma.insurer.findUnique({ where: { id: params.id } });
-  if (!existing) return NextResponse.json({ error: 'Seguradora não encontrada' }, { status: 404 });
+  if (!existing || existing.orgId !== user.orgId) return NextResponse.json({ error: 'Seguradora não encontrada' }, { status: 404 });
   if (!existing.custom) {
     return NextResponse.json(
       { error: 'Seguradoras padrão não podem ser excluídas. Você pode desativá-las.' },

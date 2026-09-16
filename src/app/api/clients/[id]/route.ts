@@ -1,12 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { getSession } from '@/lib/auth';
+import { ownerScope } from '@/lib/scope';
 
 export async function GET(_req: NextRequest, { params }: { params: { id: string } }) {
-  const user = await getSession();
+  const { user, where } = await ownerScope();
   if (!user) return NextResponse.json({ error: 'Não autenticado' }, { status: 401 });
-  const client = await prisma.client.findUnique({
-    where: { id: params.id },
+  const client = await prisma.client.findFirst({
+    where: { id: params.id, ...where },
     include: {
       deals: { orderBy: { createdAt: 'desc' } },
       policies: {
@@ -22,7 +22,7 @@ export async function GET(_req: NextRequest, { params }: { params: { id: string 
   // Activity não tem @relation com Client no schema (só tem clientId como campo).
   // Busca separada para manter o histórico de atividades na ficha 360°.
   const activities = await prisma.activity.findMany({
-    where: { clientId: params.id, ownerId: user.id },
+    where: { clientId: params.id, ...where },
     orderBy: { dueDate: 'desc' },
     take: 20,
   });
@@ -31,9 +31,12 @@ export async function GET(_req: NextRequest, { params }: { params: { id: string 
 }
 
 export async function PUT(req: NextRequest, { params }: { params: { id: string } }) {
-  const user = await getSession();
+  const { user, where } = await ownerScope();
   if (!user) return NextResponse.json({ error: 'Não autenticado' }, { status: 401 });
   const body = await req.json().catch(() => ({}));
+
+  const existing = await prisma.client.findFirst({ where: { id: params.id, ...where }, select: { id: true } });
+  if (!existing) return NextResponse.json({ error: 'Cliente não encontrado' }, { status: 404 });
 
   const client = await prisma.client.update({
     where: { id: params.id },
@@ -53,8 +56,10 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
 }
 
 export async function DELETE(_req: NextRequest, { params }: { params: { id: string } }) {
-  const user = await getSession();
+  const { user, where } = await ownerScope();
   if (!user) return NextResponse.json({ error: 'Não autenticado' }, { status: 401 });
+  const existing = await prisma.client.findFirst({ where: { id: params.id, ...where }, select: { id: true } });
+  if (!existing) return NextResponse.json({ error: 'Cliente não encontrado' }, { status: 404 });
   await prisma.client.delete({ where: { id: params.id } });
   return NextResponse.json({ ok: true });
 }

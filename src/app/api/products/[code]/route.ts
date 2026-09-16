@@ -8,7 +8,7 @@ export async function PATCH(req: NextRequest, { params }: { params: { code: stri
   if (!user) return NextResponse.json({ error: 'Não autenticado' }, { status: 401 });
   if (user.role !== 'ADMIN') return NextResponse.json({ error: 'Sem permissão' }, { status: 403 });
 
-  const existing = await prisma.product.findUnique({ where: { code: params.code } });
+  const existing = await prisma.product.findUnique({ where: { orgId_code: { orgId: user.orgId, code: params.code } } });
   if (!existing) return NextResponse.json({ error: 'Produto não encontrado' }, { status: 404 });
 
   const body = await req.json().catch(() => ({}));
@@ -20,7 +20,7 @@ export async function PATCH(req: NextRequest, { params }: { params: { code: stri
   if (typeof body.emoji === 'string') data.emoji = body.emoji;
   if (typeof body.sort === 'number') data.sort = body.sort;
 
-  const product = await prisma.product.update({ where: { code: params.code }, data });
+  const product = await prisma.product.update({ where: { orgId_code: { orgId: user.orgId, code: params.code } }, data });
   return NextResponse.json({ product });
 }
 
@@ -30,7 +30,7 @@ export async function DELETE(_req: NextRequest, { params }: { params: { code: st
   if (!user) return NextResponse.json({ error: 'Não autenticado' }, { status: 401 });
   if (user.role !== 'ADMIN') return NextResponse.json({ error: 'Sem permissão' }, { status: 403 });
 
-  const existing = await prisma.product.findUnique({ where: { code: params.code } });
+  const existing = await prisma.product.findUnique({ where: { orgId_code: { orgId: user.orgId, code: params.code } } });
   if (!existing) return NextResponse.json({ error: 'Produto não encontrado' }, { status: 404 });
   if (!existing.custom) {
     return NextResponse.json(
@@ -39,6 +39,6 @@ export async function DELETE(_req: NextRequest, { params }: { params: { code: st
     );
   }
 
-  await prisma.product.delete({ where: { code: params.code } });
+  await prisma.product.delete({ where: { orgId_code: { orgId: user.orgId, code: params.code } } });
   return NextResponse.json({ ok: true });
 }

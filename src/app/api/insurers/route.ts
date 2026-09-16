@@ -8,6 +8,7 @@ export async function GET() {
   if (!user) return NextResponse.json({ error: 'Não autenticado' }, { status: 401 });
 
   const data = await prisma.insurer.findMany({
+    where: { orgId: user.orgId },
     orderBy: [{ sort: 'asc' }, { name: 'asc' }],
   });
   return NextResponse.json({ data });
@@ -23,13 +24,14 @@ export async function POST(req: NextRequest) {
   const name = String(body.name || '').trim();
   if (!name) return NextResponse.json({ error: 'Informe o nome da seguradora' }, { status: 400 });
 
-  const exists = await prisma.insurer.findUnique({ where: { name } });
+  const exists = await prisma.insurer.findFirst({ where: { orgId: user.orgId, name } });
   if (exists) return NextResponse.json({ error: 'Já existe uma seguradora com esse nome' }, { status: 400 });
 
   const commission = Number(body.commission);
-  const last = await prisma.insurer.findFirst({ orderBy: { sort: 'desc' } });
+  const last = await prisma.insurer.findFirst({ where: { orgId: user.orgId }, orderBy: { sort: 'desc' } });
   const insurer = await prisma.insurer.create({
     data: {
+      orgId: user.orgId,
       name,
       color: String(body.color || '#2451eb'),
       website: body.website ? String(body.website).trim() : null,

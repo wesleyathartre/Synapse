@@ -1,13 +1,25 @@
 'use client';
 
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
+import { useEffect } from 'react';
 import { Sidebar, MobileNav, MobileHeader } from '@/components/Navigation';
+import { useAuth } from '@/contexts/AuthContext';
 
 // Decide o layout: tela cheia no /login, app com navegação no resto
 export function Shell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
+  const router = useRouter();
+  const { org } = useAuth();
+
   // Páginas em tela cheia (sem sidebar/nav): login e a política pública
-  const isStandalone = pathname === '/login' || pathname === '/privacidade';
+  const isStandalone = pathname === '/login' || pathname === '/privacidade' || pathname === '/bloqueado';
+
+  // Corretora bloqueada (trial vencido/suspensa) → tela de regularização.
+  useEffect(() => {
+    if (org?.blocked && pathname !== '/bloqueado') {
+      router.replace('/bloqueado');
+    }
+  }, [org?.blocked, pathname, router]);
 
   if (isStandalone) {
     return <main className="min-h-screen">{children}</main>;

@@ -84,6 +84,7 @@ export async function POST(req: NextRequest) {
         data: {
           clientId:    client.id,
           clientName:  client.name,
+          orgId:       user.orgId,
           ownerId:     user.id,
           description,
           amount,

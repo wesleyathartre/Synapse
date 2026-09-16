@@ -73,6 +73,7 @@ export async function POST(req: NextRequest) {
           status,
           temp,
           notes:   get('observacoes') || null,
+          orgId:   user.orgId,
           ownerId: user.id,
         },
       });

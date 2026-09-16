@@ -33,7 +33,7 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
-  const { user } = await ownerScope();
+  const { user, where } = await ownerScope();
   if (!user) return NextResponse.json({ error: 'Não autenticado' }, { status: 401 });
 
   const body = await req.json().catch(() => ({}));
@@ -45,7 +45,8 @@ export async function POST(req: NextRequest) {
   }
 
   const endDate = new Date(body.endDate);
-  const client = await prisma.client.findUnique({ where: { id: body.clientId } });
+  const client = await prisma.client.findFirst({ where: { id: body.clientId, ...where } });
+  if (!client) return NextResponse.json({ error: 'Cliente não encontrado' }, { status: 404 });
 
   const policy = await prisma.policy.create({
     data: {
@@ -59,6 +60,7 @@ export async function POST(req: NextRequest) {
       startDate: body.startDate ? new Date(body.startDate) : new Date(),
       endDate,
       status: computeStatus(endDate),
+      orgId: user.orgId,
       ownerId: user.id,
       dealId: body.dealId || null,
       paymentType: body.paymentType || 'UNICO',

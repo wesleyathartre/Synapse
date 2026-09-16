@@ -77,6 +77,7 @@ export async function POST(req: NextRequest) {
       status: 'NOVO',
       temp: 'MORNO',
       notes: notesParts.join(' · ').slice(0, 500),
+      orgId: owner.orgId,
       ownerId: owner.id,
     },
   });

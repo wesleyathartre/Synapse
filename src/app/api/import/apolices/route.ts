@@ -79,7 +79,7 @@ export async function POST(req: NextRequest) {
 
     // Encontra ou cria o cliente pelo nome + telefone
     let client = await prisma.client.findFirst({
-      where: { name: clientName, ownerId: user.id },
+      where: { name: clientName, orgId: user.orgId, ownerId: user.id },
     });
 
     if (!client) {
@@ -89,6 +89,7 @@ export async function POST(req: NextRequest) {
           name:    clientName,
           phone,
           email:   get('email_cliente') || null,
+          orgId:   user.orgId,
           ownerId: user.id,
         },
       });
@@ -96,7 +97,7 @@ export async function POST(req: NextRequest) {
 
     try {
       await prisma.policy.upsert({
-        where: { number },
+        where: { orgId_number: { orgId: user.orgId, number } },
         create: {
           number,
           product:    product.toUpperCase(),
@@ -108,6 +109,7 @@ export async function POST(req: NextRequest) {
           startDate:  startDate || new Date(),
           endDate,
           status:     get('status') || computeStatus(endDate),
+          orgId:      user.orgId,
           ownerId:    user.id,
           notes:      get('observacoes') || null,
         },

@@ -40,6 +40,7 @@ export async function POST(req: NextRequest) {
       clientId: body.clientId || null,
       clientName: body.clientName,
       clientPhone: body.clientPhone || null,
+      orgId: user.orgId,
       ownerId: user.id,
     },
   });

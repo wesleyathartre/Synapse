@@ -21,28 +21,50 @@ async function main() {
   await prisma.lead.deleteMany();
   await prisma.consentLog.deleteMany();
   await prisma.auditLog.deleteMany();
+  await prisma.product.deleteMany();
+  await prisma.insurer.deleteMany();
   await prisma.user.deleteMany();
+  await prisma.organization.deleteMany();
 
-  // ----- Catálogo de produtos (upsert: preserva ativações/edições do usuário) -----
+  // ----- Organizações (tenants) -----
+  // Plataforma = onde vive o OWNER (você, Synapse). Fica "acima" das corretoras.
+  const platformOrg = await prisma.organization.create({
+    data: {
+      name: 'Synapse (Plataforma)',
+      slug: 'synapse-plataforma',
+      plan: 'EMPRESARIAL',
+      status: 'ACTIVE',
+      seatLimit: 999,
+    },
+  });
+
+  // Corretora de demonstração (tenant de teste local).
+  const demoOrg = await prisma.organization.create({
+    data: {
+      name: 'Corretora Demo',
+      slug: 'corretora-demo',
+      plan: 'PROFISSIONAL',
+      status: 'ACTIVE',
+      seatLimit: 5,
+    },
+  });
+
+  // ----- Catálogo de produtos da corretora demo -----
   {
     let sort = 0;
     for (const [code, p] of Object.entries(PRODUCTS)) {
-      await prisma.product.upsert({
-        where: { code },
-        update: { label: p.label, color: p.color, emoji: p.emoji, category: p.category },
-        create: { code, label: p.label, color: p.color, emoji: p.emoji, category: p.category, sort: sort++ },
+      await prisma.product.create({
+        data: { orgId: demoOrg.id, code, label: p.label, color: p.color, emoji: p.emoji, category: p.category, sort: sort++ },
       });
     }
   }
 
-  // ----- Catálogo de seguradoras (upsert: preserva ativações/edições do usuário) -----
+  // ----- Catálogo de seguradoras da corretora demo -----
   {
     let sort = 0;
     for (const name of INSURERS) {
-      await prisma.insurer.upsert({
-        where: { name },
-        update: {},
-        create: { name, sort: sort++ },
+      await prisma.insurer.create({
+        data: { orgId: demoOrg.id, name, sort: sort++ },
       });
     }
   }
@@ -50,9 +72,25 @@ async function main() {
   // ----- Usuários -----
   const passwordHash = await bcrypt.hash('123456', 10);
 
+  // OWNER da plataforma (super admin — gerencia todas as corretoras).
+  await prisma.user.create({
+    data: {
+      orgId: platformOrg.id,
+      name: 'Wesley Athar',
+      email: 'owner@synapsecrm.com',
+      password: passwordHash,
+      role: 'OWNER',
+      phone: '(11) 99999-0001',
+      acceptedTermsAt: new Date(),
+      termsVersion: '2026-09-11',
+      marketingConsent: true,
+    },
+  });
+
   const admin = await prisma.user.create({
     data: {
-      name: 'Wesley Athar',
+      orgId: demoOrg.id,
+      name: 'Admin Demo',
       email: 'admin@synapsecrm.com',
       password: passwordHash,
       role: 'ADMIN',
@@ -65,6 +103,7 @@ async function main() {
 
   const corretor = await prisma.user.create({
     data: {
+      orgId: demoOrg.id,
       name: 'Ana Corretora',
       email: 'ana@synapsecrm.com',
       password: passwordHash,
@@ -102,6 +141,7 @@ async function main() {
           city,
           state,
           address: `Rua das Flores, ${100 + i * 7}`,
+          orgId: demoOrg.id,
           ownerId: rand(owners),
         },
       }),
@@ -154,6 +194,7 @@ async function main() {
         clientId: client.id,
         clientName: client.name,
         clientPhone: client.phone,
+        orgId: demoOrg.id,
         ownerId: rand(owners),
         order: i,
       },
@@ -178,6 +219,7 @@ async function main() {
         clientId: client.id,
         clientName: client.name,
         clientPhone: client.phone,
+        orgId: demoOrg.id,
         ownerId: rand(owners),
       },
     });
@@ -200,6 +242,7 @@ async function main() {
         interest: rand(products),
         status: rand(leadStatus),
         temp: rand(['FRIO', 'MORNO', 'QUENTE']),
+        orgId: demoOrg.id,
         ownerId: rand(owners),
       },
     });
@@ -232,6 +275,7 @@ async function main() {
         startDate: daysFromNow(-365 + i * 5),
         endDate,
         status,
+        orgId: demoOrg.id,
         ownerId: rand(owners),
       },
     });
@@ -252,6 +296,7 @@ async function main() {
         clientId: pol.clientId,
         clientName: pol.clientName,
         policyId: pol.id,
+        orgId: pol.orgId,
         ownerId: pol.ownerId,
         description: `Parcela ${(i % 4) + 1}/4 — Seguro ${pol.product}`,
         amount,
@@ -279,14 +324,16 @@ async function main() {
         title: rand(titles),
         dueDate: daysFromNow(rand([-2, -1, 0, 1, 2, 3, 5])),
         done: Math.random() > 0.6,
+        orgId: demoOrg.id,
         ownerId: rand(owners),
       },
     });
   }
 
   console.log('✅ Seed concluído!');
-  console.log('   Login ADMIN:    admin@synapsecrm.com / 123456');
-  console.log('   Login CORRETOR: ana@synapsecrm.com / 123456');
+  console.log('   Login OWNER:    owner@synapsecrm.com / 123456  (plataforma)');
+  console.log('   Login ADMIN:    admin@synapsecrm.com / 123456  (Corretora Demo)');
+  console.log('   Login CORRETOR: ana@synapsecrm.com / 123456  (Corretora Demo)');
 }
 
 main()

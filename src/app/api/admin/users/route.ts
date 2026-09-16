@@ -12,6 +12,7 @@ export async function GET() {
   if (!guard.ok) return NextResponse.json({ error: guard.error }, { status: guard.status });
 
   const users = await prisma.user.findMany({
+    where: { orgId: guard.session.orgId },
     select: {
       id: true,
       name: true,
@@ -45,9 +46,23 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Já existe uma conta com este e-mail' }, { status: 409 });
   }
 
+  // Limite de assentos do plano da corretora.
+  const org = await prisma.organization.findUnique({
+    where: { id: guard.session.orgId },
+    select: { seatLimit: true },
+  });
+  const seatCount = await prisma.user.count({ where: { orgId: guard.session.orgId } });
+  if (org && seatCount >= org.seatLimit) {
+    return NextResponse.json(
+      { error: `Limite de ${org.seatLimit} usuário(s) do plano atingido. Faça upgrade para adicionar mais.` },
+      { status: 403 },
+    );
+  }
+
   const passwordHash = await bcrypt.hash(password, 12);
   const user = await prisma.user.create({
     data: {
+      orgId: guard.session.orgId,
       name,
       email,
       phone: phone || null,

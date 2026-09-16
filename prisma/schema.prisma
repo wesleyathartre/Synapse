@@ -11,14 +11,33 @@ datasource db {
   directUrl = env("DIRECT_URL")
 }
 
+// ==================== ORGANIZAÇÃO (CORRETORA / TENANT) ====================
+// Cada corretora é um "tenant" isolado. Todos os dados carregam o orgId dela.
+model Organization {
+  id          String    @id @default(cuid())
+  name        String
+  slug        String    @unique // identificador amigável (ex.: pupo-corretora)
+  plan        String    @default("PROFISSIONAL") // ESSENCIAL | PROFISSIONAL | EMPRESARIAL
+  status      String    @default("TRIAL")        // TRIAL | ACTIVE | SUSPENDED
+  seatLimit   Int       @default(5)              // limite de usuários do plano
+  trialEndsAt DateTime?                           // fim do período de teste
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  users User[]
+
+  @@index([status])
+}
+
 // ==================== USUÁRIOS / CORRETORES ====================
 model User {
   id        String   @id @default(cuid())
+  orgId     String   // corretora à qual o usuário pertence
   name      String
   email     String   @unique
   password  String
   phone     String?
-  role      String   @default("CORRETOR") // ADMIN | CORRETOR
+  role      String   @default("CORRETOR") // OWNER | ADMIN | CORRETOR
   avatarUrl String?
   active    Boolean  @default(true)
 
@@ -39,6 +58,8 @@ model User {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  organization Organization @relation(fields: [orgId], references: [id])
+
   leads            Lead[]
   clients          Client[]
   deals            Deal[]
@@ -50,12 +71,15 @@ model User {
   sdrConversations SdrConversation[]
   claims           Claim[]
   policyAttachments PolicyAttachment[]
+
+  @@index([orgId])
 }
 
 // ==================== LGPD — TRILHA DE CONSENTIMENTO ====================
 // Guarda a prova de cada consentimento (com data, versão, IP e user agent).
 model ConsentLog {
   id        String   @id @default(cuid())
+  orgId     String?  // corretora (opcional em logs)
   userId    String
   type      String // TERMS | PRIVACY | MARKETING
   granted   Boolean
@@ -68,12 +92,14 @@ model ConsentLog {
 
   @@index([userId])
   @@index([type])
+  @@index([orgId])
 }
 
 // ==================== SEGURANÇA — TRILHA DE AUDITORIA ====================
 // Eventos sensíveis: login, cadastro, exportação e exclusão de dados, etc.
 model AuditLog {
   id        String   @id @default(cuid())
+  orgId     String?  // corretora (opcional em logs)
   userId    String?
   email     String?
   action    String // REGISTER | LOGIN_SUCCESS | LOGIN_FAIL | PASSWORD_CHANGE | DATA_EXPORT | ACCOUNT_DELETE
@@ -87,11 +113,13 @@ model AuditLog {
   @@index([userId])
   @@index([action])
   @@index([createdAt])
+  @@index([orgId])
 }
 
 // ==================== LEADS (topo do funil) ====================
 model Lead {
   id        String   @id @default(cuid())
+  orgId     String   // corretora (tenant)
   name      String
   email     String?
   phone     String
@@ -129,11 +157,13 @@ model Lead {
   @@index([ownerId])
   @@index([sdrStatus])
   @@index([sdrScore])
+  @@index([orgId])
 }
 
 // ==================== CLIENTES / SEGURADOS ====================
 model Client {
   id        String   @id @default(cuid())
+  orgId     String   // corretora (tenant)
   name      String
   email     String?
   phone     String
@@ -154,11 +184,13 @@ model Client {
   claims   Claim[]
 
   @@index([ownerId])
+  @@index([orgId])
 }
 
 // ==================== FUNIL DE VENDAS (Oportunidades/Negócios) ====================
 model Deal {
   id                String    @id @default(cuid())
+  orgId             String    // corretora (tenant)
   title             String
   product           String    @default("AUTO") // AUTO | VIDA | RESIDENCIAL | SAUDE | EMPRESARIAL | VIAGEM | CONSORCIO
   stage             String    @default("NOVO") // NOVO | CONTATO | PROPOSTA | NEGOCIACAO | GANHO
@@ -186,12 +218,14 @@ model Deal {
   @@index([stage])
   @@index([status])
   @@index([ownerId])
+  @@index([orgId])
 }
 
 // ==================== APÓLICES ====================
 model Policy {
   id              String   @id @default(cuid())
-  number          String   @unique
+  orgId           String   // corretora (tenant)
+  number          String
   product         String   @default("AUTO")
   insurer         String
   clientId        String
@@ -217,15 +251,18 @@ model Policy {
   claims      Claim[]
   attachments PolicyAttachment[]
 
+  @@unique([orgId, number])
   @@index([status])
   @@index([endDate])
   @@index([ownerId])
+  @@index([orgId])
 }
 
 // ==================== ANEXOS DE APÓLICE (PDF) ====================
 // Guarda o arquivo (PDF) da apólice/endosso vinculado a uma apólice.
 model PolicyAttachment {
   id        String   @id @default(cuid())
+  orgId     String   // corretora (tenant)
   policyId  String
   ownerId   String
   filename  String
@@ -239,12 +276,14 @@ model PolicyAttachment {
 
   @@index([policyId])
   @@index([ownerId])
+  @@index([orgId])
 }
 
 // ==================== SINISTROS ====================
 // Acompanhamento de avarias/acionamentos do cliente junto à seguradora.
 model Claim {
   id           String    @id @default(cuid())
+  orgId        String    // corretora (tenant)
   number       String?   // número do sinistro na seguradora
   clientId     String
   clientName   String    // desnormalizado para listagens
@@ -271,11 +310,13 @@ model Claim {
   @@index([ownerId])
   @@index([clientId])
   @@index([policyId])
+  @@index([orgId])
 }
 
 // ==================== ATIVIDADES / TAREFAS / AGENDA ====================
 model Activity {
   id          String   @id @default(cuid())
+  orgId       String   // corretora (tenant)
   type        String   @default("TAREFA") // LIGACAO | WHATSAPP | EMAIL | REUNIAO | TAREFA
   title       String
   description String?
@@ -295,13 +336,16 @@ model Activity {
   @@index([done])
   @@index([dueDate])
   @@index([ownerId])
+  @@index([orgId])
 }
 
 // ==================== CATÁLOGO DE PRODUTOS ====================
 // Fonte de verdade dos produtos ofertados. O admin pode ativar/desativar
 // e criar novos produtos sem alterar o código.
 model Product {
-  code      String   @id // código usado nas oportunidades/apólices (ex.: AUTO)
+  id        String   @id @default(cuid())
+  orgId     String   // corretora (tenant)
+  code      String   // código usado nas oportunidades/apólices (ex.: AUTO)
   label     String
   color     String   @default("#2451eb")
   emoji     String   @default("🏷️")
@@ -312,6 +356,8 @@ model Product {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  @@unique([orgId, code])
+  @@index([orgId])
   @@index([category])
   @@index([active])
 }
@@ -320,6 +366,7 @@ model Product {
 // Parcelas vinculadas a apólices, deals ou lançadas manualmente.
 model Boleto {
   id          String    @id @default(cuid())
+  orgId       String    // corretora (tenant)
   clientId    String
   clientName  String    // desnormalizado para facilitar listagens
   policyId    String?
@@ -349,6 +396,7 @@ model Boleto {
   @@index([ownerId])
   @@index([clientId])
   @@index([policyId])
+  @@index([orgId])
 }
 
 // ==================== SDR — CONVERSAS DE PRÉ-ATENDIMENTO ====================
@@ -356,6 +404,7 @@ model Boleto {
 // Estrutura preparada; integração WhatsApp ativada na Fase 2.
 model SdrConversation {
   id            String    @id @default(cuid())
+  orgId         String    // corretora (tenant)
   leadId        String
   ownerId       String
   channel       String    @default("WHATSAPP") // WHATSAPP | INSTAGRAM | WEB
@@ -377,6 +426,7 @@ model SdrConversation {
   @@index([active])
   @@index([leadId])
   @@index([ownerId])
+  @@index([orgId])
 }
 
 // ==================== SDR — CONFIGURAÇÃO DO FLUXO ====================
@@ -384,6 +434,7 @@ model SdrConversation {
 // Uma linha por tenant (ownerId). Fase 2.
 model SdrConfig {
   id                String   @id @default(cuid())
+  orgId             String   // corretora (tenant)
   ownerId           String   @unique
   active            Boolean  @default(false)  // SDR ativado?
   welcomeMessage    String?  // mensagem de boas-vindas customizada
@@ -394,6 +445,7 @@ model SdrConfig {
   updatedAt         DateTime @updatedAt
 
   @@index([ownerId])
+  @@index([orgId])
 }
 
 // ==================== LANDING PAGE — CONFIGURAÇÃO EDITÁVEL ====================
@@ -412,7 +464,8 @@ model LandingConfig {
 // Catálogo das seguradoras com quem o corretor trabalha (Porto, Suhai, Ademicon...).
 model Insurer {
   id         String   @id @default(cuid())
-  name       String   @unique
+  orgId      String   // corretora (tenant)
+  name       String
   color      String   @default("#2451eb")   // cor de identificação
   website    String?                          // portal do corretor
   phone      String?                          // central de atendimento
@@ -423,6 +476,9 @@ model Insurer {
   sort       Int      @default(0)
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
+
+  @@unique([orgId, name])
+  @@index([orgId])
 }
 
 

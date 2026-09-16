@@ -8,6 +8,7 @@ export async function GET() {
   if (!user) return NextResponse.json({ error: 'Não autenticado' }, { status: 401 });
 
   const data = await prisma.product.findMany({
+    where: { orgId: user.orgId },
     orderBy: [{ sort: 'asc' }, { label: 'asc' }],
   });
   return NextResponse.json({ data });
@@ -35,13 +36,14 @@ export async function POST(req: NextRequest) {
 
   let code = base;
   let n = 1;
-  while (await prisma.product.findUnique({ where: { code } })) {
+  while (await prisma.product.findFirst({ where: { orgId: user.orgId, code } })) {
     code = `${base}_${n++}`;
   }
 
-  const last = await prisma.product.findFirst({ orderBy: { sort: 'desc' } });
+  const last = await prisma.product.findFirst({ where: { orgId: user.orgId }, orderBy: { sort: 'desc' } });
   const product = await prisma.product.create({
     data: {
+      orgId: user.orgId,
       code,
       label,
       category,

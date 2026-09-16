@@ -28,5 +28,11 @@ yarn-error.log*
 /prisma/*.db
 /prisma/*.db-journal
 
+# banco Postgres LOCAL de desenvolvimento (embedded-postgres)
+/.pgdata/
+
+# arquivos temporarios de trabalho, ensaios e backups locais (prefixo _)
+/_*
+
 # typescript
 *.tsbuildinfo

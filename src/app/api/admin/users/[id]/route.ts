@@ -18,7 +18,7 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
   const { active, role, password } = parsed.data;
   const permissions = parsed.data.permissions;
 
-  const target = await prisma.user.findUnique({ where: { id: params.id } });
+  const target = await prisma.user.findFirst({ where: { id: params.id, orgId: guard.session.orgId } });
   if (!target) return NextResponse.json({ error: 'Usuário não encontrado' }, { status: 404 });
 
   // Impede o admin de se desativar ou rebaixar (evita lockout).
@@ -29,7 +29,7 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
   // Impede deixar o sistema sem nenhum admin ativo.
   if (target.role === 'ADMIN' && (active === false || role === 'CORRETOR')) {
     const otherActiveAdmins = await prisma.user.count({
-      where: { role: 'ADMIN', active: true, id: { not: target.id } },
+      where: { role: 'ADMIN', active: true, orgId: guard.session.orgId, id: { not: target.id } },
     });
     if (otherActiveAdmins === 0) {
       return NextResponse.json({ error: 'É necessário manter ao menos um administrador ativo.' }, { status: 400 });

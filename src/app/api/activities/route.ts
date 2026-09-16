@@ -37,6 +37,7 @@ export async function POST(req: NextRequest) {
       dealId: body.dealId || null,
       clientId: body.clientId || null,
       leadId: body.leadId || null,
+      orgId: user.orgId,
       ownerId: user.id,
     },
   });

@@ -89,6 +89,7 @@ export async function POST(req: NextRequest) {
         status: 'NOVO',
         temp: 'MORNO',
         notes: 'Origem: Chat SDR (site)',
+        orgId: owner.orgId,
         ownerId: owner.id,
         sdrStatus: 'EM_TRIAGEM',
         sdrChannel: 'WEB',
@@ -103,6 +104,7 @@ export async function POST(req: NextRequest) {
     conversation = await prisma.sdrConversation.create({
       data: {
         leadId: lead.id,
+        orgId: owner.orgId,
         ownerId: owner.id,
         phone: webId,
         channel: 'WEB',
@@ -220,6 +222,7 @@ export async function POST(req: NextRequest) {
         description: generateHandoffSummary(updatedCtx, handoffPhone),
         dueDate: new Date(),
         done: false,
+        orgId: owner.orgId,
         ownerId: owner.id,
         leadId: lead.id,
       },

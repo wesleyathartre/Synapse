@@ -23,6 +23,7 @@ import {
   Wallet,
   ShieldCheck,
   ShieldAlert,
+  Building2,
 } from 'lucide-react';
 
 export const NAV = [
@@ -46,6 +47,11 @@ export const ADMIN_NAV = [
   { href: '/seguradoras', label: 'Seguradoras', icon: ShieldCheck },
   { href: '/importacao', label: 'Importação', icon: Upload },
   { href: '/sdr',        label: 'SDR',        icon: Bot },
+];
+
+// Itens visíveis apenas para o OWNER (dono da plataforma)
+export const OWNER_NAV = [
+  { href: '/plataforma', label: 'Plataforma', icon: Building2 },
 ];
 
 // ------- Sidebar (desktop) -------
@@ -107,6 +113,28 @@ export function Sidebar() {
             })}
           </div>
         )}
+
+        {user?.role === 'OWNER' && (
+          <div className="pt-3 mt-3 border-t border-white/10">
+            <p className="px-3 pb-1 text-[10px] font-semibold uppercase tracking-wider text-slate-500">Plataforma</p>
+            {OWNER_NAV.map((item) => {
+              const active = pathname === item.href;
+              return (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  className={cx(
+                    'flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors',
+                    active ? 'bg-brand-600 text-white' : 'text-slate-300 hover:bg-white/10 hover:text-white',
+                  )}
+                >
+                  <item.icon size={18} />
+                  {item.label}
+                </Link>
+              );
+            })}
+          </div>
+        )}
       </nav>
 
       <div className="p-3 border-t border-white/10">
@@ -117,7 +145,7 @@ export function Sidebar() {
             </div>
             <div className="flex-1 min-w-0 leading-tight">
               <p className="text-sm font-semibold truncate">{user?.name || '—'}</p>
-              <p className="text-[11px] text-slate-400 truncate">{user?.role === 'ADMIN' ? 'Administrador' : 'Corretor'}</p>
+              <p className="text-[11px] text-slate-400 truncate">{user?.role === 'OWNER' ? 'Plataforma' : user?.role === 'ADMIN' ? 'Administrador' : 'Corretor'}</p>
             </div>
           </Link>
           <button onClick={logout} title="Sair" className="p-2 text-slate-400 hover:text-red-400 transition-colors">
@@ -136,7 +164,9 @@ export function MobileNav() {
   const visibleNav = NAV.filter((item) =>
     canAccessKey(user?.role || '', user?.permissions, moduleKeyForPath(item.href) || ''),
   );
-  const items = user?.role === 'ADMIN' ? [...visibleNav, ...ADMIN_NAV] : visibleNav;
+  const items = user?.role === 'ADMIN' ? [...visibleNav, ...ADMIN_NAV]
+    : user?.role === 'OWNER' ? [...visibleNav, ...OWNER_NAV]
+    : visibleNav;
   return (
     <nav className="md:hidden fixed bottom-0 inset-x-0 z-40 bg-white border-t border-slate-200 flex justify-around safe-bottom">
       {items.map((item) => {

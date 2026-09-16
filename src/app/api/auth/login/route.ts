@@ -38,6 +38,7 @@ export async function POST(req: NextRequest) {
 
   const session = {
     id: user.id,
+    orgId: user.orgId,
     name: user.name,
     email: user.email,
     role: user.role,

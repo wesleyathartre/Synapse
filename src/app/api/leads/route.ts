@@ -45,6 +45,7 @@ export async function POST(req: NextRequest) {
       status: body.status || 'NOVO',
       temp: body.temp || 'MORNO',
       notes: body.notes || null,
+      orgId: user.orgId,
       ownerId: user.id,
     },
   });

@@ -8,6 +8,7 @@ const secret = new TextEncoder().encode(
 
 export interface SessionUser {
   id: string;
+  orgId: string;
   name: string;
   email: string;
   role: string;
@@ -27,6 +28,7 @@ export async function verifyToken(token: string): Promise<SessionUser | null> {
     const { payload } = await jwtVerify(token, secret);
     return {
       id: payload.id as string,
+      orgId: payload.orgId as string,
       name: payload.name as string,
       email: payload.email as string,
       role: payload.role as string,

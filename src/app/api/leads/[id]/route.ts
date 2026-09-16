@@ -1,19 +1,22 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { getSession } from '@/lib/auth';
+import { ownerScope } from '@/lib/scope';
 
 export async function GET(_req: NextRequest, { params }: { params: { id: string } }) {
-  const user = await getSession();
+  const { user, where } = await ownerScope();
   if (!user) return NextResponse.json({ error: 'Não autenticado' }, { status: 401 });
-  const lead = await prisma.lead.findUnique({ where: { id: params.id } });
+  const lead = await prisma.lead.findFirst({ where: { id: params.id, ...where } });
   if (!lead) return NextResponse.json({ error: 'Lead não encontrado' }, { status: 404 });
   return NextResponse.json(lead);
 }
 
 export async function PUT(req: NextRequest, { params }: { params: { id: string } }) {
-  const user = await getSession();
+  const { user, where } = await ownerScope();
   if (!user) return NextResponse.json({ error: 'Não autenticado' }, { status: 401 });
   const body = await req.json().catch(() => ({}));
+
+  const existing = await prisma.lead.findFirst({ where: { id: params.id, ...where } });
+  if (!existing) return NextResponse.json({ error: 'Lead não encontrado' }, { status: 404 });
 
   const lead = await prisma.lead.update({
     where: { id: params.id },
@@ -32,11 +35,11 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
 }
 
 // Converte lead em cliente + oportunidade no funil
-export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
-  const user = await getSession();
+export async function POST(_req: NextRequest, { params }: { params: { id: string } }) {
+  const { user, where } = await ownerScope();
   if (!user) return NextResponse.json({ error: 'Não autenticado' }, { status: 401 });
 
-  const lead = await prisma.lead.findUnique({ where: { id: params.id } });
+  const lead = await prisma.lead.findFirst({ where: { id: params.id, ...where } });
   if (!lead) return NextResponse.json({ error: 'Lead não encontrado' }, { status: 404 });
 
   const client = await prisma.client.create({
@@ -44,6 +47,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
       name: lead.name,
       email: lead.email,
       phone: lead.phone,
+      orgId: lead.orgId,
       ownerId: user.id,
     },
   });
@@ -56,6 +60,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
       clientId: client.id,
       clientName: client.name,
       clientPhone: client.phone,
+      orgId: lead.orgId,
       ownerId: user.id,
     },
   });
@@ -69,8 +74,10 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
 }
 
 export async function DELETE(_req: NextRequest, { params }: { params: { id: string } }) {
-  const user = await getSession();
+  const { user, where } = await ownerScope();
   if (!user) return NextResponse.json({ error: 'Não autenticado' }, { status: 401 });
+  const existing = await prisma.lead.findFirst({ where: { id: params.id, ...where } });
+  if (!existing) return NextResponse.json({ error: 'Lead não encontrado' }, { status: 404 });
   await prisma.lead.delete({ where: { id: params.id } });
   return NextResponse.json({ ok: true });
 }

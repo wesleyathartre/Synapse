@@ -34,7 +34,7 @@ export async function GET(req: NextRequest) {
 
 // POST /api/claims — abre um sinistro
 export async function POST(req: NextRequest) {
-  const { user } = await ownerScope();
+  const { user, where } = await ownerScope();
   if (!user) return NextResponse.json({ error: 'Não autenticado' }, { status: 401 });
 
   const body = await req.json().catch(() => ({}));
@@ -43,14 +43,14 @@ export async function POST(req: NextRequest) {
   }
 
   const client = await prisma.client.findFirst({
-    where: { id: body.clientId, ...(user.role === 'ADMIN' ? {} : { ownerId: user.id }) },
+    where: { id: body.clientId, ...where },
   });
   if (!client) return NextResponse.json({ error: 'Cliente não encontrado.' }, { status: 404 });
 
   let policy = null;
   if (body.policyId) {
     policy = await prisma.policy.findFirst({
-      where: { id: body.policyId, ...(user.role === 'ADMIN' ? {} : { ownerId: user.id }) },
+      where: { id: body.policyId, ...where },
     });
   }
 
@@ -73,6 +73,7 @@ export async function POST(req: NextRequest) {
       reportedDate: body.reportedDate ? new Date(body.reportedDate) : new Date(),
       amount: Number(body.amount) || 0,
       notes: body.notes?.trim() || null,
+      orgId: user.orgId,
       ownerId: user.id,
     },
   });

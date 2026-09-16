@@ -93,6 +93,7 @@ export async function POST(req: NextRequest) {
           city:     get('cidade')   || null,
           state:    get('estado') ? String(get('estado')).toUpperCase().slice(0, 2) : null,
           notes:    get('observacoes') || null,
+          orgId:    user.orgId,
           ownerId:  user.id,
         },
         update: {

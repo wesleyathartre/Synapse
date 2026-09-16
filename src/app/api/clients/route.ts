@@ -45,6 +45,7 @@ export async function POST(req: NextRequest) {
       city: body.city || null,
       state: body.state ? String(body.state).toUpperCase().slice(0, 2) : null,
       notes: body.notes || null,
+      orgId: user.orgId,
       ownerId: user.id,
     },
   });

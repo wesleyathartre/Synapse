@@ -1,12 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { getSession } from '@/lib/auth';
+import { ownerScope } from '@/lib/scope';
 
 export async function GET(_req: NextRequest, { params }: { params: { id: string } }) {
-  const user = await getSession();
+  const { user, where } = await ownerScope();
   if (!user) return NextResponse.json({ error: 'Não autenticado' }, { status: 401 });
-  const deal = await prisma.deal.findUnique({
-    where: { id: params.id },
+  const deal = await prisma.deal.findFirst({
+    where: { id: params.id, ...where },
     include: { activities: { orderBy: { dueDate: 'asc' } } },
   });
   if (!deal) return NextResponse.json({ error: 'Oportunidade não encontrada' }, { status: 404 });
@@ -15,9 +15,12 @@ export async function GET(_req: NextRequest, { params }: { params: { id: string 
 
 // Atualização geral OU mudança de etapa/ordem no kanban (drag & drop)
 export async function PATCH(req: NextRequest, { params }: { params: { id: string } }) {
-  const user = await getSession();
+  const { user, where } = await ownerScope();
   if (!user) return NextResponse.json({ error: 'Não autenticado' }, { status: 401 });
   const body = await req.json().catch(() => ({}));
+
+  const existing = await prisma.deal.findFirst({ where: { id: params.id, ...where }, select: { id: true } });
+  if (!existing) return NextResponse.json({ error: 'Oportunidade não encontrada' }, { status: 404 });
 
   const data: any = {};
   if (body.stage !== undefined) {
@@ -37,9 +40,12 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
 }
 
 export async function PUT(req: NextRequest, { params }: { params: { id: string } }) {
-  const user = await getSession();
+  const { user, where } = await ownerScope();
   if (!user) return NextResponse.json({ error: 'Não autenticado' }, { status: 401 });
   const body = await req.json().catch(() => ({}));
+
+  const existing = await prisma.deal.findFirst({ where: { id: params.id, ...where }, select: { id: true } });
+  if (!existing) return NextResponse.json({ error: 'Oportunidade não encontrada' }, { status: 404 });
 
   const deal = await prisma.deal.update({
     where: { id: params.id },
@@ -60,8 +66,10 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
 }
 
 export async function DELETE(_req: NextRequest, { params }: { params: { id: string } }) {
-  const user = await getSession();
+  const { user, where } = await ownerScope();
   if (!user) return NextResponse.json({ error: 'Não autenticado' }, { status: 401 });
+  const existing = await prisma.deal.findFirst({ where: { id: params.id, ...where }, select: { id: true } });
+  if (!existing) return NextResponse.json({ error: 'Oportunidade não encontrada' }, { status: 404 });
   await prisma.deal.delete({ where: { id: params.id } });
   return NextResponse.json({ ok: true });
 }

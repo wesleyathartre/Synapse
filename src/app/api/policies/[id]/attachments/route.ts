@@ -45,6 +45,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
   const created = await prisma.policyAttachment.create({
     data: {
       policyId: params.id,
+      orgId: policy.orgId,
       ownerId: policy.ownerId,
       filename: (file.name || 'apolice.pdf').slice(0, 200),
       mimeType: file.type,

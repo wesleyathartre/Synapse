@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { getSession } from '@/lib/auth';
+import { ownerScope } from '@/lib/scope';
 
 function computeStatus(endDate: Date): string {
   const now = new Date();
@@ -25,10 +25,10 @@ function buildInstallmentDates(startDate: Date, paymentType: string, installment
 
 // POST — fecha a venda (GANHO) e gera a apólice vinculada + boletos (opcional)
 export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
-  const user = await getSession();
+  const { user, where } = await ownerScope();
   if (!user) return NextResponse.json({ error: 'Não autenticado' }, { status: 401 });
 
-  const deal = await prisma.deal.findUnique({ where: { id: params.id } });
+  const deal = await prisma.deal.findFirst({ where: { id: params.id, ...where } });
   if (!deal) return NextResponse.json({ error: 'Oportunidade não encontrada' }, { status: 404 });
 
   // Já existe apólice para esta venda? Não duplica.
@@ -48,7 +48,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
       { status: 400 },
     );
   }
-  const client = await prisma.client.findUnique({ where: { id: clientId } });
+  const client = await prisma.client.findFirst({ where: { id: clientId, orgId: deal.orgId } });
   if (!client) return NextResponse.json({ error: 'Cliente não encontrado' }, { status: 404 });
 
   // Datas de vigência (padrão: hoje + 1 ano)
@@ -61,13 +61,13 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
   const year = startDate.getFullYear();
   let number = String(body.number || '').trim();
   if (!number) {
-    const count = await prisma.policy.count({ where: { number: { startsWith: `AP-${year}-` } } });
+    const count = await prisma.policy.count({ where: { orgId: deal.orgId, number: { startsWith: `AP-${year}-` } } });
     number = `AP-${year}-${String(count + 1).padStart(4, '0')}`;
   }
   // Garante unicidade
   let n = 1;
   const base = number;
-  while (await prisma.policy.findUnique({ where: { number } })) {
+  while (await prisma.policy.findFirst({ where: { orgId: deal.orgId, number } })) {
     number = `${base}-${n++}`;
   }
 
@@ -89,6 +89,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
         endDate,
         status: computeStatus(endDate),
         dealId: deal.id,
+        orgId: deal.orgId,
         ownerId: deal.ownerId,
         paymentType,
         installments,
@@ -112,6 +113,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
           clientName: client.name,
           policyId: policy.id,
           dealId: deal.id,
+          orgId: deal.orgId,
           ownerId: deal.ownerId,
           description: `Parcela ${i + 1}/${dates.length} — Apólice ${number}`,
           amount: perParcel,
