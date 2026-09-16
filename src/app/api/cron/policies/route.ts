@@ -23,7 +23,8 @@ export const maxDuration = 60;
 
 function isCronAuthorized(req: NextRequest): boolean {
   const secret = process.env.CRON_SECRET;
-  if (!secret) return true; // sem secret configurado = ambiente dev
+  // Fail-closed: em produção exige o segredo. Sem segredo só passa fora de produção (dev local).
+  if (!secret) return process.env.NODE_ENV !== 'production';
   const auth = req.headers.get('authorization') || '';
   return auth === `Bearer ${secret}`;
 }

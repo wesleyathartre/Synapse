@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getSession } from '@/lib/auth';
+import { toPercent } from '@/lib/validation';
 
 // PATCH — atualiza/ativa/desativa uma seguradora (somente ADMIN)
 export async function PATCH(req: NextRequest, { params }: { params: { id: string } }) {
@@ -21,7 +22,7 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
   if (typeof body.notes === 'string') data.notes = body.notes.trim() || null;
   if (body.commission !== undefined) {
     const c = Number(body.commission);
-    if (Number.isFinite(c)) data.commission = c;
+    if (Number.isFinite(c)) data.commission = toPercent(body.commission);
   }
   if (typeof body.sort === 'number') data.sort = body.sort;
 

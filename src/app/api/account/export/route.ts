@@ -1,12 +1,22 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getSession } from '@/lib/auth';
+import { rateLimit } from '@/lib/rate-limit';
 import { audit } from '@/lib/audit';
 
 // LGPD — Direito de portabilidade: exporta todos os dados do usuário em JSON.
 export async function GET() {
   const session = await getSession();
   if (!session) return NextResponse.json({ error: 'Não autenticado' }, { status: 401 });
+
+  // Anti-abuso: limita exportações completas por usuário (10 por hora).
+  const rl = rateLimit(`account-export:${session.id}`, 10, 60 * 60 * 1000);
+  if (!rl.ok) {
+    return NextResponse.json(
+      { error: 'Muitas exportações. Aguarde alguns minutos.' },
+      { status: 429, headers: { 'Retry-After': String(rl.retryAfterSec) } },
+    );
+  }
 
   const [user, leads, clients, deals, policies, activities, consents] = await Promise.all([
     prisma.user.findUnique({

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { ownerScope } from '@/lib/scope';
+import { toMoney, toCount } from '@/lib/validation';
 
 function computeStatus(endDate: Date): string {
   const now = new Date();
@@ -55,8 +56,8 @@ export async function POST(req: NextRequest) {
       insurer: body.insurer,
       clientId: body.clientId,
       clientName: client?.name || body.clientName || '',
-      premium: Number(body.premium) || 0,
-      commission: Number(body.commission) || 0,
+      premium: toMoney(body.premium),
+      commission: toMoney(body.commission),
       startDate: body.startDate ? new Date(body.startDate) : new Date(),
       endDate,
       status: computeStatus(endDate),
@@ -64,7 +65,7 @@ export async function POST(req: NextRequest) {
       ownerId: user.id,
       dealId: body.dealId || null,
       paymentType: body.paymentType || 'UNICO',
-      installments: Math.max(1, Number(body.installments) || 1),
+      installments: toCount(body.installments),
       notes: body.notes || null,
     },
   });

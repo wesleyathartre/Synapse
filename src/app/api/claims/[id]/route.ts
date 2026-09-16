@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { ownerScope } from '@/lib/scope';
 import { CLAIM_STATUS, CLAIM_TYPES } from '@/lib/constants';
+import { toMoney } from '@/lib/validation';
 
 // PATCH /api/claims/[id] — atualiza um sinistro
 export async function PATCH(req: NextRequest, { params }: { params: { id: string } }) {
@@ -22,7 +23,7 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
   if (typeof body.insurer === 'string') data.insurer = body.insurer.trim() || null;
   if (body.incidentDate) data.incidentDate = new Date(body.incidentDate);
   if (body.reportedDate) data.reportedDate = new Date(body.reportedDate);
-  if (body.amount !== undefined) data.amount = Number(body.amount) || 0;
+  if (body.amount !== undefined) data.amount = toMoney(body.amount);
 
   if (Object.keys(data).length === 0) {
     return NextResponse.json({ error: 'Nada para atualizar.' }, { status: 400 });

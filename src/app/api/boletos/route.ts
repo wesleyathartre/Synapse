@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { ownerScope } from '@/lib/scope';
+import { toMoney } from '@/lib/validation';
 
 // ── helpers ──────────────────────────────────────────────────────────────────
 
@@ -118,6 +119,11 @@ export async function POST(req: NextRequest) {
     );
   }
 
+  const amount = toMoney(body.amount);
+  if (amount <= 0) {
+    return NextResponse.json({ error: 'Valor do boleto inválido.' }, { status: 400 });
+  }
+
   const client = await prisma.client.findFirst({ where: { id: body.clientId, ...where } });
   if (!client) return NextResponse.json({ error: 'Cliente não encontrado' }, { status: 404 });
 
@@ -142,7 +148,7 @@ export async function POST(req: NextRequest) {
             orgId: user.orgId,
             ownerId: user.id,
             description: `Parcela ${i + 1}/${dates.length} — ${body.description || policy.number}`,
-            amount: Number(body.amount),
+            amount,
             dueDate: date,
             status: 'PENDENTE',
             barcode: body.barcode || null,
@@ -168,7 +174,7 @@ export async function POST(req: NextRequest) {
       orgId: user.orgId,
       ownerId: user.id,
       description: body.description,
-      amount: Number(body.amount),
+      amount,
       dueDate: new Date(body.dueDate),
       status: 'PENDENTE',
       barcode: body.barcode || null,

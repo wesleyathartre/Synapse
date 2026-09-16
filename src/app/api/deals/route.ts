@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { ownerScope } from '@/lib/scope';
+import { toMoney, toPercent } from '@/lib/validation';
 
 export async function GET(req: NextRequest) {
   const { user, where } = await ownerScope();
@@ -32,10 +33,10 @@ export async function POST(req: NextRequest) {
       title: body.title || `${product} — ${body.clientName}`,
       product,
       stage: body.stage || 'NOVO',
-      value: Number(body.value) || 0,
-      premium: Number(body.premium) || 0,
-      commission: Number(body.commission) || 0,
-      probability: Number(body.probability) || 50,
+      value: toMoney(body.value),
+      premium: toMoney(body.premium),
+      commission: toMoney(body.commission),
+      probability: toPercent(body.probability, 50),
       expectedCloseDate: body.expectedCloseDate ? new Date(body.expectedCloseDate) : null,
       clientId: body.clientId || null,
       clientName: body.clientName,

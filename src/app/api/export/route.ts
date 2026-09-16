@@ -16,6 +16,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { ownerScope } from '@/lib/scope';
+import { rateLimit } from '@/lib/rate-limit';
 
 export const dynamic = 'force-dynamic';
 
@@ -49,6 +50,15 @@ function formatMoney(n: number): string {
 export async function GET(req: NextRequest) {
   const { user, where } = await ownerScope();
   if (!user) return NextResponse.json({ error: 'Não autenticado' }, { status: 401 });
+
+  // Anti-exfiltração: limita exportações por usuário (20 por hora).
+  const rl = rateLimit(`export:${user.id}`, 20, 60 * 60 * 1000);
+  if (!rl.ok) {
+    return NextResponse.json(
+      { error: 'Muitas exportações. Aguarde alguns minutos.' },
+      { status: 429, headers: { 'Retry-After': String(rl.retryAfterSec) } },
+    );
+  }
 
   const searchParams = req.nextUrl.searchParams;
   const type = searchParams.get('type') || 'boletos'; // 'boletos' | 'financeiro'

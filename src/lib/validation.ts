@@ -53,3 +53,27 @@ export type LoginInput = z.infer<typeof loginSchema>;
 export function firstError(err: z.ZodError): string {
   return err.issues[0]?.message || 'Dados inválidos';
 }
+
+// ── Sanitizadores numéricos (integridade financeira) ─────────────────────────
+// Impedem que valores negativos, NaN ou Infinity entrem no banco por formulários.
+
+// Valor monetário: número finito >= 0, com teto sanitário. Inválido → fallback.
+export function toMoney(value: unknown, fallback = 0): number {
+  const n = typeof value === 'string' ? Number(value.replace(',', '.')) : Number(value);
+  if (!Number.isFinite(n) || n < 0) return fallback;
+  return Math.min(n, 1_000_000_000);
+}
+
+// Percentual entre 0 e 100. Inválido → fallback.
+export function toPercent(value: unknown, fallback = 0): number {
+  const n = Number(value);
+  if (!Number.isFinite(n)) return fallback;
+  return Math.min(Math.max(n, 0), 100);
+}
+
+// Contagem inteira >= 1 (ex.: parcelas). Inválido → fallback.
+export function toCount(value: unknown, fallback = 1): number {
+  const n = Math.floor(Number(value));
+  if (!Number.isFinite(n) || n < 1) return fallback;
+  return Math.min(n, 1000);
+}

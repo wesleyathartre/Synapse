@@ -4,6 +4,7 @@ import { prisma } from '@/lib/prisma';
 import { requireAdmin } from '@/lib/auth-guard';
 import { adminCreateUserSchema, firstError } from '@/lib/validation';
 import { sanitizePermissions } from '@/lib/permissions';
+import { rateLimit } from '@/lib/rate-limit';
 import { audit, getClientIp, getUserAgent } from '@/lib/audit';
 
 // GET /api/admin/users — lista usuários (somente ADMIN)
@@ -34,6 +35,15 @@ export async function GET() {
 export async function POST(req: NextRequest) {
   const guard = await requireAdmin();
   if (!guard.ok) return NextResponse.json({ error: guard.error }, { status: guard.status });
+
+  // Anti-abuso: limita criação de usuários por admin (20 por hora).
+  const rl = rateLimit(`admin-create-user:${guard.session.id}`, 20, 60 * 60 * 1000);
+  if (!rl.ok) {
+    return NextResponse.json(
+      { error: 'Muitas criações de usuário. Aguarde alguns minutos.' },
+      { status: 429, headers: { 'Retry-After': String(rl.retryAfterSec) } },
+    );
+  }
 
   const parsed = adminCreateUserSchema.safeParse(await req.json().catch(() => ({})));
   if (!parsed.success) {

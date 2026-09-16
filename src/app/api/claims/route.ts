@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { ownerScope } from '@/lib/scope';
 import { CLAIM_STATUS, CLAIM_TYPES } from '@/lib/constants';
+import { toMoney } from '@/lib/validation';
 
 // GET /api/claims — lista sinistros (escopo do corretor) + resumo
 export async function GET(req: NextRequest) {
@@ -71,7 +72,7 @@ export async function POST(req: NextRequest) {
       description: body.description?.trim() || null,
       incidentDate: body.incidentDate ? new Date(body.incidentDate) : new Date(),
       reportedDate: body.reportedDate ? new Date(body.reportedDate) : new Date(),
-      amount: Number(body.amount) || 0,
+      amount: toMoney(body.amount),
       notes: body.notes?.trim() || null,
       orgId: user.orgId,
       ownerId: user.id,

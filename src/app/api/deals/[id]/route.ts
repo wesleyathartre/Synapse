@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { ownerScope } from '@/lib/scope';
+import { toMoney, toPercent } from '@/lib/validation';
 
 export async function GET(_req: NextRequest, { params }: { params: { id: string } }) {
   const { user, where } = await ownerScope();
@@ -31,7 +32,7 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
       data.probability = 100;
     }
   }
-  if (body.order !== undefined) data.order = Number(body.order);
+  if (body.order !== undefined) data.order = Number.isFinite(Number(body.order)) ? Number(body.order) : 0;
   if (body.status !== undefined) data.status = body.status;
   if (body.lostReason !== undefined) data.lostReason = body.lostReason;
 
@@ -53,10 +54,10 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
       title: body.title,
       product: body.product,
       stage: body.stage,
-      value: Number(body.value) || 0,
-      premium: Number(body.premium) || 0,
-      commission: Number(body.commission) || 0,
-      probability: Number(body.probability) || 0,
+      value: toMoney(body.value),
+      premium: toMoney(body.premium),
+      commission: toMoney(body.commission),
+      probability: toPercent(body.probability, 0),
       expectedCloseDate: body.expectedCloseDate ? new Date(body.expectedCloseDate) : null,
       clientName: body.clientName,
       clientPhone: body.clientPhone ?? null,

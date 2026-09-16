@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getSession } from '@/lib/auth';
+import { toPercent } from '@/lib/validation';
 
 // GET — lista o catálogo de seguradoras (qualquer usuário autenticado)
 export async function GET() {
@@ -36,7 +37,7 @@ export async function POST(req: NextRequest) {
       color: String(body.color || '#2451eb'),
       website: body.website ? String(body.website).trim() : null,
       phone: body.phone ? String(body.phone).trim() : null,
-      commission: Number.isFinite(commission) ? commission : 0,
+      commission: Number.isFinite(commission) ? toPercent(body.commission) : 0,
       notes: body.notes ? String(body.notes).trim() : null,
       custom: true,
       active: true,

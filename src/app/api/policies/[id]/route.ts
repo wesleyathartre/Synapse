@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { ownerScope } from '@/lib/scope';
+import { toMoney, toCount } from '@/lib/validation';
 
 export async function PUT(req: NextRequest, { params }: { params: { id: string } }) {
   const { user, where } = await ownerScope();
@@ -16,13 +17,13 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
       number: body.number,
       product: body.product,
       insurer: body.insurer,
-      premium: Number(body.premium) || 0,
-      commission: Number(body.commission) || 0,
+      premium: toMoney(body.premium),
+      commission: toMoney(body.commission),
       startDate: body.startDate ? new Date(body.startDate) : undefined,
       endDate: body.endDate ? new Date(body.endDate) : undefined,
       status: body.status,
       paymentType: body.paymentType || undefined,
-      installments: body.installments ? Math.max(1, Number(body.installments)) : undefined,
+      installments: body.installments ? toCount(body.installments) : undefined,
       notes: body.notes ?? null,
     },
   });
