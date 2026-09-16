@@ -24,6 +24,7 @@ import {
   ShieldCheck,
   ShieldAlert,
   Building2,
+  Wrench,
 } from 'lucide-react';
 
 export const NAV = [
@@ -52,6 +53,7 @@ export const ADMIN_NAV = [
 // Itens visíveis apenas para o OWNER (dono da plataforma)
 export const OWNER_NAV = [
   { href: '/plataforma', label: 'Plataforma', icon: Building2 },
+  { href: '/ferramentas', label: 'Ferramentas', icon: Wrench },
 ];
 
 // ------- Sidebar (desktop) -------
