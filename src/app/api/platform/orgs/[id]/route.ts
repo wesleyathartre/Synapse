@@ -21,7 +21,20 @@ export async function GET(_req: NextRequest, { params }: { params: { id: string 
   });
   if (!org) return NextResponse.json({ error: 'Corretora não encontrada.' }, { status: 404 });
 
-  return NextResponse.json({ org });
+  // Métricas de uso da corretora (contagens por orgId).
+  const [leads, clients, policies] = await Promise.all([
+    prisma.lead.count({ where: { orgId: params.id } }),
+    prisma.client.count({ where: { orgId: params.id } }),
+    prisma.policy.count({ where: { orgId: params.id } }),
+  ]);
+
+  // Último acesso = maior lastLoginAt entre os usuários da corretora.
+  const lastLoginAt = org.users.reduce<Date | null>((max, u) => {
+    if (u.lastLoginAt && (!max || u.lastLoginAt > max)) return u.lastLoginAt;
+    return max;
+  }, null);
+
+  return NextResponse.json({ org, metrics: { leads, clients, policies, lastLoginAt } });
 }
 
 // PATCH /api/platform/orgs/[id] — ativa/suspende, troca plano/nome (somente OWNER)
@@ -62,6 +75,24 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
     data.seatLimit = n;
   }
 
+  // Estender/definir (ou limpar) o fim do período de teste.
+  if (body.trialEndsAt !== undefined) {
+    if (body.trialEndsAt === null || body.trialEndsAt === '') {
+      data.trialEndsAt = null;
+    } else {
+      const d = new Date(body.trialEndsAt);
+      if (Number.isNaN(d.getTime())) {
+        return NextResponse.json({ error: 'Data de trial inválida.' }, { status: 400 });
+      }
+      data.trialEndsAt = d;
+    }
+  }
+
+  // Anotações internas do OWNER (uso interno; a corretora nunca vê).
+  if (body.internalNotes !== undefined) {
+    data.internalNotes = String(body.internalNotes ?? '').slice(0, 5000) || null;
+  }
+
   if (Object.keys(data).length === 0) {
     return NextResponse.json({ error: 'Nada para atualizar.' }, { status: 400 });
   }
@@ -71,6 +102,7 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
   await audit({
     action: 'PLATFORM_UPDATE_ORG',
     userId: guard.session.id,
+    orgId: params.id,
     ip: getClientIp(req),
     userAgent: getUserAgent(req),
     meta: { orgId: params.id, changes: data },

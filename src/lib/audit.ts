@@ -16,6 +16,7 @@ interface AuditInput {
   action: string;
   userId?: string | null;
   email?: string | null;
+  orgId?: string | null;
   ip?: string;
   userAgent?: string;
   meta?: Record<string, unknown>;
@@ -29,6 +30,7 @@ export async function audit(input: AuditInput): Promise<void> {
         action: input.action,
         userId: input.userId ?? null,
         email: input.email ?? null,
+        orgId: input.orgId ?? null,
         ip: input.ip ?? null,
         userAgent: input.userAgent ?? null,
         meta: input.meta ? JSON.stringify(input.meta) : null,

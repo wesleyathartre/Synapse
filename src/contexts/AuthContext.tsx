@@ -21,6 +21,7 @@ export interface OrgState {
 interface AuthCtx {
   user: User | null;
   org: OrgState | null;
+  impersonating: boolean;
   loading: boolean;
   logout: () => Promise<void>;
   refresh: () => Promise<void>;
@@ -31,6 +32,7 @@ const Ctx = createContext<AuthCtx>({} as AuthCtx);
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [org, setOrg] = useState<OrgState | null>(null);
+  const [impersonating, setImpersonating] = useState(false);
   const [loading, setLoading] = useState(true);
   const router = useRouter();
 
@@ -41,13 +43,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         const data = await res.json();
         setUser(data.user);
         setOrg(data.org ?? null);
+        setImpersonating(!!data.impersonating);
       } else {
         setUser(null);
         setOrg(null);
+        setImpersonating(false);
       }
     } catch {
       setUser(null);
       setOrg(null);
+      setImpersonating(false);
     } finally {
       setLoading(false);
     }
@@ -61,10 +66,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     await fetch('/api/auth/logout', { method: 'POST' });
     setUser(null);
     setOrg(null);
+    setImpersonating(false);
     router.push('/login');
   };
 
-  return <Ctx.Provider value={{ user, org, loading, logout, refresh }}>{children}</Ctx.Provider>;
+  return <Ctx.Provider value={{ user, org, impersonating, loading, logout, refresh }}>{children}</Ctx.Provider>;
 }
 
 export const useAuth = () => useContext(Ctx);

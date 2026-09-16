@@ -21,6 +21,7 @@ model Organization {
   status      String    @default("TRIAL")        // TRIAL | ACTIVE | SUSPENDED
   seatLimit   Int       @default(5)              // limite de usuários do plano
   trialEndsAt DateTime?                           // fim do período de teste
+  internalNotes String?                            // anotações internas do OWNER (não visível à corretora)
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
 

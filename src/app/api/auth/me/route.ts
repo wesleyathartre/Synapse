@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { getSession, signToken, setSessionCookie, clearSessionCookie } from '@/lib/auth';
+import { getSession, signToken, setSessionCookie, clearSessionCookie, getImpersonatorToken } from '@/lib/auth';
 import { evalOrgAccess, BLOCK_MESSAGE } from '@/lib/org-access';
 
 export async function GET() {
@@ -57,5 +57,5 @@ export async function GET() {
     setSessionCookie(await signToken(user));
   }
 
-  return NextResponse.json({ user, org });
+  return NextResponse.json({ user, org, impersonating: !!getImpersonatorToken() });
 }

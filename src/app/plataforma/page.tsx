@@ -6,7 +6,8 @@ import { useAuth } from '@/contexts/AuthContext';
 import { Card, Badge, Button, Input, Select, Field, Modal, Empty, StatCard } from '@/components/ui';
 import { PLANS, PLAN_CODES } from '@/lib/plans';
 import { formatDate } from '@/lib/format';
-import { Building2, Plus, Loader2, Power, PlayCircle, PauseCircle, Users, Sparkles } from 'lucide-react';
+import { Building2, Plus, Loader2, PlayCircle, PauseCircle, Users, Sparkles, Search, Settings2 } from 'lucide-react';
+import { OrgDetailsModal } from './OrgDetailsModal';
 
 interface OrgRow {
   id: string;
@@ -56,6 +57,9 @@ export default function PlataformaPage() {
   const [error, setError] = useState('');
   const [created, setCreated] = useState<string>('');
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [detailId, setDetailId] = useState<string | null>(null);
+  const [q, setQ] = useState('');
+  const [fStatus, setFStatus] = useState('');
 
   useEffect(() => {
     if (!authLoading && user && user.role !== 'OWNER') router.replace('/');
@@ -88,6 +92,15 @@ export default function PlataformaPage() {
       .reduce((sum, o) => sum + (PLANS[o.plan as keyof typeof PLANS]?.priceMonthly || 0), 0);
     return { total, active, trial, suspended, mrr };
   }, [orgs]);
+
+  const visibleOrgs = useMemo(() => {
+    const term = q.trim().toLowerCase();
+    return orgs.filter((o) => {
+      if (fStatus && o.status !== fStatus) return false;
+      if (term && !`${o.name} ${o.slug}`.toLowerCase().includes(term)) return false;
+      return true;
+    });
+  }, [orgs, q, fStatus]);
 
   const openNew = () => {
     setForm(EMPTY_FORM);
@@ -192,6 +205,26 @@ export default function PlataformaPage() {
           <Empty>Nenhuma corretora ainda. Crie a primeira.</Empty>
         ) : (
           <div className="overflow-x-auto">
+            <div className="flex items-center gap-2 flex-wrap p-3 border-b border-slate-100">
+              <div className="relative flex-1 min-w-[200px]">
+                <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                <Input
+                  value={q}
+                  onChange={(e) => setQ(e.target.value)}
+                  placeholder="Buscar por nome ou slug..."
+                  className="!pl-9"
+                />
+              </div>
+              <Select value={fStatus} onChange={(e) => setFStatus(e.target.value)} className="w-48">
+                <option value="">Todas as situações</option>
+                <option value="ACTIVE">Ativas</option>
+                <option value="TRIAL">Em trial</option>
+                <option value="SUSPENDED">Suspensas</option>
+              </Select>
+            </div>
+            {visibleOrgs.length === 0 ? (
+              <Empty>Nenhuma corretora encontrada com esse filtro.</Empty>
+            ) : (
             <table className="w-full text-sm">
               <thead className="bg-slate-50 text-slate-500 text-xs uppercase tracking-wider">
                 <tr>
@@ -204,7 +237,7 @@ export default function PlataformaPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {orgs.map((o) => {
+                {visibleOrgs.map((o) => {
                   const meta = STATUS_META[o.status] || { label: o.status, color: 'slate' };
                   const busy = busyId === o.id;
                   return (
@@ -240,6 +273,9 @@ export default function PlataformaPage() {
                       <td className="px-4 py-3">
                         <div className="flex items-center justify-end gap-1">
                           {busy && <Loader2 size={16} className="animate-spin text-slate-400" />}
+                          <Button variant="secondary" onClick={() => setDetailId(o.id)} disabled={busy} className="!py-1 !px-2 !text-xs">
+                            <Settings2 size={14} /> Gerenciar
+                          </Button>
                           {o.status !== 'ACTIVE' ? (
                             <Button variant="secondary" onClick={() => activate(o)} disabled={busy} className="!py-1 !px-2 !text-xs">
                               <PlayCircle size={14} /> Ativar
@@ -256,6 +292,7 @@ export default function PlataformaPage() {
                 })}
               </tbody>
             </table>
+            )}
           </div>
         )}
       </Card>
@@ -314,6 +351,10 @@ export default function PlataformaPage() {
           </div>
         </form>
       </Modal>
+
+      {detailId && (
+        <OrgDetailsModal orgId={detailId} onClose={() => setDetailId(null)} onChanged={load} />
+      )}
     </div>
   );
 }

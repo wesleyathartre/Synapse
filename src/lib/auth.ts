@@ -61,3 +61,25 @@ export function clearSessionCookie() {
 }
 
 export const AUTH_COOKIE = COOKIE_NAME;
+
+// ---------- Impersonação (OWNER acessa como uma corretora) ----------
+const IMPERSONATOR_COOKIE = 'crm_impersonator';
+
+// Guarda o token original do OWNER enquanto ele acessa como a corretora.
+export function setImpersonatorCookie(token: string) {
+  cookies().set(IMPERSONATOR_COOKIE, token, {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: 'lax',
+    maxAge: 60 * 60 * 24,
+    path: '/',
+  });
+}
+
+export function getImpersonatorToken(): string | undefined {
+  return cookies().get(IMPERSONATOR_COOKIE)?.value;
+}
+
+export function clearImpersonatorCookie() {
+  cookies().delete(IMPERSONATOR_COOKIE);
+}
